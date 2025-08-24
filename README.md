@@ -17,6 +17,10 @@ Analyzes your YouTube subscriptions using AI to find the most relevant videos wo
 - ⚡ **Content Filtering**: Automatically filters out YouTube Shorts (≤60 seconds) to focus on substantive content
 - 🎬 **Long Video Handling**: Special metadata-only analysis for extra-long videos (>1 hour) to avoid token limits
 
+**Example Email Output:**
+
+![Email Example](images/email-example.png)
+
 ## Features
 
 - 🐳 **Docker Ready**: Optimized for deployment on Raspberry Pi and other platforms
