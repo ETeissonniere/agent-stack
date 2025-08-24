@@ -57,13 +57,11 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	log.Printf("Scheduler started for %s with schedule: %s", s.agent.Name(), s.config.Schedule)
 	s.cron.Start()
 
-	// Keep the scheduler running
-	select {
-	case <-ctx.Done():
-		log.Printf("Scheduler stopped for %s", s.agent.Name())
-		s.cron.Stop()
-		return ctx.Err()
-	}
+	// Keep the scheduler running indefinitely until context is cancelled
+	<-ctx.Done()
+	log.Printf("Scheduler stopped for %s", s.agent.Name())
+	s.cron.Stop()
+	return ctx.Err()
 }
 
 func (s *Scheduler) RunOnce(ctx context.Context) error {
