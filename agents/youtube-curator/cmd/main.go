@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"agent-stack/shared/config"
 	"agent-stack/shared/scheduler"
@@ -17,7 +19,9 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	ctx := context.Background()
+	// Create context that responds to signals
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
 	
 	// Create YouTube agent and scheduler
 	agent := youtubecurator.NewYouTubeAgent(cfg)
@@ -36,5 +40,7 @@ func main() {
 	}
 
 	fmt.Println("Starting scheduler...")
-	s.Start(ctx)
+	if err := s.Start(ctx); err != nil {
+		log.Fatalf("Scheduler failed: %v", err)
+	}
 }

@@ -140,7 +140,7 @@ guidelines:
     - "Avoid clickbait or overly promotional content"
     - "Prefer content from established creators with good reputation"
 
-schedule: "0 9 * * *" # Daily at 9 AM
+schedule: "0 0 9 * * *" # Daily at 9 AM
 ```
 
 ## Usage
