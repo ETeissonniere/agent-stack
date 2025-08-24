@@ -1,0 +1,28 @@
+youtube:
+  client_id: "" # Set via GOOGLE_CLIENT_ID env var
+  client_secret: "" # Set via GOOGLE_CLIENT_SECRET env var
+  token_file: "data/youtube_token.json"
+
+ai:
+  gemini_api_key: "" # Set via GEMINI_API_KEY env var
+  model: "gemini-2.5-flash"
+
+email:
+  smtp_server: "smtp.mail.me.com"
+  smtp_port: 587
+  username: "" # Set via EMAIL_USERNAME env var
+  password: "" # Set via EMAIL_PASSWORD env var
+  from_email: ""
+  to_email: ""
+
+guidelines:
+  criteria:
+    - "Educational content about programming, technology, or software development"
+    - "High-quality tutorials or explanations of complex topics"
+    - "Industry insights from experienced professionals"
+    - "New technology announcements or reviews"
+    - "Content that would help with professional development"
+    - "Avoid clickbait or overly promotional content"
+    - "Prefer content from established creators with good reputation"
+
+schedule: "0 9 * * *" # Daily at 9 AM

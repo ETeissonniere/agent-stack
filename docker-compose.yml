@@ -1,0 +1,20 @@
+version: '3.8'
+
+services:
+  youtube-curator:
+    build: .
+    container_name: youtube-curator
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - CONFIG_FILE=/app/config.yaml
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 1m
+      timeout: 30s
+      retries: 1
+      start_period: 5s
