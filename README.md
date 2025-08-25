@@ -205,10 +205,12 @@ guidelines:
 
 ### Scheduling
 
-The cron schedule format supports:
-- `"0 9 * * *"` - Daily at 9 AM
-- `"0 9 * * 1"` - Weekly on Monday at 9 AM  
-- `"0 */6 * * *"` - Every 6 hours
+The application uses a 6-field CRON format with seconds. Common examples:
+- `"0 0 9 * * *"` - Daily at 9:00 AM
+- `"0 30 8 * * 1"` - Mondays at 8:30 AM
+- `"0 0 */6 * * *"` - Every 6 hours
+
+For complete CRON format documentation, see `CLAUDE.md`.
 
 ### AI Model Selection
 
