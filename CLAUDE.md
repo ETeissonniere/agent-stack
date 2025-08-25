@@ -29,6 +29,36 @@ Required environment variables:
 
 Configuration is managed in `config.yaml` with environment variable overrides.
 
+### Schedule Configuration
+
+The application uses a 6-field CRON format (with seconds) powered by `robfig/cron/v3`:
+
+**Format**: `second minute hour day month weekday`
+
+**Field ranges**:
+- `second`: 0-59
+- `minute`: 0-59  
+- `hour`: 0-23
+- `day`: 1-31
+- `month`: 1-12 (or Jan-Dec)
+- `weekday`: 0-6 (0=Sunday, or Sun-Sat)
+
+**Special characters**:
+- `*` (any): matches any value
+- `?` (any): same as `*`, used for day/weekday
+- `-` (range): `1-5` means 1,2,3,4,5
+- `,` (list): `1,3,5` means 1 or 3 or 5
+- `/` (step): `*/15` means every 15 units
+- `@yearly`, `@monthly`, `@weekly`, `@daily`, `@hourly`
+
+**Examples**:
+- `"0 0 9 * * *"` - Daily at 9:00 AM
+- `"0 30 8 * * 1"` - Mondays at 8:30 AM
+- `"0 0 */6 * * *"` - Every 6 hours
+- `"0 15 10 * * 1-5"` - Weekdays at 10:15 AM
+- `"0 0 8 1 * *"` - First day of every month at 8:00 AM
+- `"30 45 23 * * 0"` - Sundays at 11:45:30 PM
+
 ## API Setup
 
 ### YouTube OAuth
