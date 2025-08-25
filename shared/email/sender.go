@@ -127,7 +127,7 @@ func (s *Sender) generateEmailBody(report *models.EmailReport) (string, error) {
         <p style="font-style: italic; color: #888; margin: 15px 0;">"Signal over noise instead of noise over signal"</p>
         <hr style="border: none; border-top: 1px solid #ddd; margin: 20px 0;">
         <p>Made with ❤️ by <a href="https://eliottteissonniere.com" style="color: #ff0000; text-decoration: none;">Eliott Teissonniere</a></p>
-        <p><a href="https://github.com/ETeissonniere/agent-stack" style="color: #ff0000; text-decoration: none;">⭐ Star us on GitHub</a> • <a href="https://eliottteissonniere.com" style="color: #ff0000; text-decoration: none;">Visit my website</a></p>
+        <p><a href="https://github.com/ETeissonniere/agent-stack" style="color: #ff0000; text-decoration: none;">⭐ Star us on GitHub</a></p>
     </div>
 </body>
 </html>
