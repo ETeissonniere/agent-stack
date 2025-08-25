@@ -24,20 +24,14 @@ FROM alpine:latest
 # Install ca-certificates for HTTPS requests and curl for health checks
 RUN apk --no-cache add ca-certificates curl
 
-# Create a non-root user and app directory
-RUN adduser -D -s /bin/sh appuser
-RUN mkdir -p /app && chown appuser:appuser /app
-
 WORKDIR /app
 
 # Copy the binary from builder stage and set permissions
-COPY --from=builder --chown=appuser:appuser /app/youtube-curator .
+COPY --from=builder /app/youtube-curator .
 RUN chmod +x youtube-curator
 
 # Copy config file
-COPY --from=builder --chown=appuser:appuser /app/config.yaml .
-
-USER appuser
+COPY --from=builder /app/config.yaml .
 
 # Expose health check port
 EXPOSE 8080
