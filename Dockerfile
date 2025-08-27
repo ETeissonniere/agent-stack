@@ -30,9 +30,6 @@ WORKDIR /app
 COPY --from=builder /app/youtube-curator .
 RUN chmod +x youtube-curator
 
-# Copy config file
-COPY --from=builder /app/config.yaml .
-
 # Expose health check port
 EXPOSE 8080
 
