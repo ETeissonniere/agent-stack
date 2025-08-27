@@ -27,7 +27,20 @@ Required environment variables:
 - `GEMINI_API_KEY`: Google AI Studio API key
 - `EMAIL_USERNAME` / `EMAIL_PASSWORD`: SMTP credentials
 
+Optional environment variables:
+- `CONFIG_FILE`: Custom config file path (default: `./config.yaml`)
+- `HEALTHCHECK_PORT`: Health monitoring port for both app and Docker (default: 8080)
+
 Configuration is managed in `config.yaml` with environment variable overrides.
+
+### Video Filtering Configuration
+
+The application includes video duration filters to skip very short or very long videos:
+
+- `video.short_minutes`: Skip videos shorter than this duration (default: 1 minute)
+- `video.long_minutes`: Skip videos longer than this duration (default: 60 minutes)
+
+This helps focus analysis on substantive content while avoiding shorts and overly long videos.
 
 ### Schedule Configuration
 
@@ -89,4 +102,40 @@ docker-compose up -d
 
 ## Monitoring
 
-Health check endpoint available at `:8080/health` when running. Container logs available via `docker logs youtube-curator`.
+- Endpoints: `/health` (200 OK or 503) and `/status` (text summary)
+- Port: configured via `monitoring.health_port` in `config.yaml` (default 8080)
+- Docker healthchecks: configurable via a single `HEALTHCHECK_PORT` variable used by both the app (override) and Docker healthchecks. Set it in `.env` to keep everything in sync.
+- Logs: view with `docker logs youtube-curator`
+
+## Agent Interface
+
+Agents implement the scheduler contract in `shared/scheduler/scheduler.go`:
+
+```go
+// Metrics defines the common interface for agent metrics
+type Metrics interface {
+    GetSummary() string
+}
+
+// AgentEvents provides callbacks for monitoring agent execution
+type AgentEvents struct {
+    OnSuccess         func(metrics Metrics, duration time.Duration)
+    OnPartialFailure  func(err error, duration time.Duration)
+    OnCriticalFailure func(err error, duration time.Duration)
+}
+
+// Agent defines the interface that all agents must implement
+type Agent interface {
+    Name() string
+    Initialize() error
+    RunOnce(ctx context.Context, events *AgentEvents) error
+}
+```
+
+Notes:
+- Agents receive monitoring callbacks through `AgentEvents` for cleaner separation of concerns.
+- `OnSuccess`: Called when agent completes successfully, receives metrics implementing the `Metrics` interface.
+- `OnPartialFailure`: Called for recoverable errors (e.g., email send failures) that don't stop execution.
+- `OnCriticalFailure`: Called for unrecoverable errors that require stopping execution.
+- The scheduler handles all monitoring internally, agents provide domain-specific metrics via the `Metrics` interface.
+- Scheduler prevents overlapping runs via `cron.SkipIfStillRunning`.
