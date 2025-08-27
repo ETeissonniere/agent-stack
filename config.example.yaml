@@ -26,3 +26,10 @@ guidelines:
     - "Prefer content from established creators with good reputation"
 
 schedule: "0 0 9 * * *" # Daily at 9 AM
+
+monitoring:
+  health_port: 8080
+
+video:
+  short_minutes: 1
+  long_minutes: 60

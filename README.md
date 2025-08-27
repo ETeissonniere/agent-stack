@@ -141,7 +141,22 @@ guidelines:
     - "Prefer content from established creators with good reputation"
 
 schedule: "0 0 9 * * *" # Daily at 9 AM
+
+monitoring:
+  # Port for health endpoints `/health` and `/status`
+  health_port: 8080
+
+video:
+  # Skip videos at or below this length
+  short_minutes: 1
+  # Fallback to metadata-only above this duration
+  long_minutes: 60
 ```
+
+### Video Settings
+
+ - `short_minutes`: Minutes threshold to skip short videos (e.g., YouTube Shorts). Defaults to 1.
+ - `long_minutes`: Minutes threshold to switch to metadata-only analysis for very long videos. Defaults to 60.
 
 ## Usage
 
@@ -212,6 +227,14 @@ The application uses a 6-field CRON format with seconds. Common examples:
 
 For complete CRON format documentation, see `CLAUDE.md`.
 
+### Monitoring
+
+- Endpoints: `/health` (200/503) and `/status` (plain text summary)
+- Port: configured via `monitoring.health_port` (default 8080)
+- Docker healthchecks: configurable via a single `HEALTHCHECK_PORT` environment variable used by both the app (override) and Docker healthchecks.
+  - To change the port in Docker: set `HEALTHCHECK_PORT=9090` in `.env` or your shell
+  - Alternatively, change `monitoring.health_port` in `config.yaml` and set `HEALTHCHECK_PORT` to match
+
 ### AI Model Selection
 
 You can change the Gemini model in config:
@@ -255,6 +278,8 @@ docker logs youtube-curator -f
 # Application logs to stdout
 ```
 
+Health check server listens on port 8080 by default. Configure via `monitoring.health_port` in `config.yaml`.
+
 ## Security Notes
 
 - Store API keys in environment variables only
@@ -289,7 +314,7 @@ agent-stack/
 │   └── youtube-curator/       # YouTube curation agent
 │       ├── cmd/               # Agent entry point
 │       ├── youtube/           # YouTube API client
-│       └── youtube_agent.go   # Main agent implementation
+│       └── agent.go           # Main agent implementation
 ├── shared/                    # Shared libraries
 │   ├── config/                # Configuration management
 │   ├── monitoring/            # Health checks and monitoring

@@ -22,8 +22,8 @@ import (
 )
 
 type Client struct {
-	service *youtube.Service
-	config  *config.YouTubeConfig
+    service *youtube.Service
+    config  *config.YouTubeConfig
 }
 
 func NewClient(cfg *config.YouTubeConfig) (*Client, error) {
@@ -53,10 +53,10 @@ func NewClient(cfg *config.YouTubeConfig) (*Client, error) {
 		return nil, fmt.Errorf("failed to create YouTube service: %w", err)
 	}
 
-	return &Client{
-		service: service,
-		config:  cfg,
-	}, nil
+    return &Client{
+        service: service,
+        config:  cfg,
+    }, nil
 }
 
 func getToken(config *oauth2.Config, tokenFile string) (*oauth2.Token, error) {
@@ -295,8 +295,7 @@ func (c *Client) GetSubscriptionVideos(ctx context.Context, maxResults int64) ([
 	log.Printf("Found %d recent videos from subscriptions", len(allVideoIDs))
 
 	// Step 4: Get detailed video information in batches
-	var allVideos []*models.Video
-	var skippedShorts int
+    var allVideos []*models.Video
 	
 	for i := 0; i < len(allVideoIDs); i += batchSize {
 		end := i + batchSize
@@ -314,20 +313,13 @@ func (c *Client) GetSubscriptionVideos(ctx context.Context, maxResults int64) ([
 			continue
 		}
 
-		for _, item := range videosResponse.Items {
-			// Skip YouTube Shorts (videos ≤60 seconds)
-			durationSeconds := parseDurationSeconds(item.ContentDetails.Duration)
-			if durationSeconds <= 60 && durationSeconds > 0 {
-				log.Printf("Skipping YouTube Short: %s (%ds) - %s", item.Snippet.Title, durationSeconds, item.Snippet.ChannelTitle)
-				skippedShorts++
-				continue
-			}
-
-			video := &models.Video{
-				ID:              item.Id,
-				Title:           item.Snippet.Title,
-				Description:     item.Snippet.Description,
-				ChannelID:       item.Snippet.ChannelId,
+        for _, item := range videosResponse.Items {
+            durationSeconds := parseDurationSeconds(item.ContentDetails.Duration)
+            video := &models.Video{
+                ID:              item.Id,
+                Title:           item.Snippet.Title,
+                Description:     item.Snippet.Description,
+                ChannelID:       item.Snippet.ChannelId,
 				ChannelTitle:    item.Snippet.ChannelTitle,
 				Duration:        item.ContentDetails.Duration,
 				DurationSeconds: durationSeconds,
@@ -352,7 +344,7 @@ func (c *Client) GetSubscriptionVideos(ctx context.Context, maxResults int64) ([
 		}
 	}
 
-	log.Printf("Retrieved %d videos from %d subscriptions (skipped %d shorts)", len(allVideos), len(subscriptionsResponse.Items), skippedShorts)
+    log.Printf("Retrieved %d videos from %d subscriptions", len(allVideos), len(subscriptionsResponse.Items))
 
 	return allVideos, nil
 }
