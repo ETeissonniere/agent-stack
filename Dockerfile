@@ -30,12 +30,13 @@ WORKDIR /app
 COPY --from=builder /app/youtube-curator .
 RUN chmod +x youtube-curator
 
-# Expose health check port
+# Expose health check port (default 8080)
+ENV HEALTHCHECK_PORT=8080
 EXPOSE 8080
 
-# Health check using HTTP endpoint
+# Health check using HTTP endpoint (configurable via HEALTHCHECK_PORT)
 HEALTHCHECK --interval=1m --timeout=30s --start-period=5s --retries=1 \
-  CMD curl -f http://localhost:8080/health || exit 1
+  CMD curl -f http://localhost:${HEALTHCHECK_PORT}/health || exit 1
 
 # Run the application
 CMD ["./youtube-curator"]

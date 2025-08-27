@@ -1,11 +1,12 @@
 package ai
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"log"
-	"strings"
+    "context"
+    "encoding/json"
+    "fmt"
+    "log"
+    "strings"
+    "errors"
 
 	"agent-stack/internal/models"
 	"agent-stack/shared/config"
@@ -14,13 +15,15 @@ import (
 )
 
 type Analyzer struct {
-	client     *genai.Client
-	model      string
-	guidelines []string
+    client     *genai.Client
+    model      string
+    guidelines []string
+    longVideoMinutes int
+    shortVideoMinutes int
 }
 
 func NewAnalyzer(cfg *config.Config) (*Analyzer, error) {
-	ctx := context.Background()
+    ctx := context.Background()
 	
 	// Configure client with API key
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
@@ -30,11 +33,15 @@ func NewAnalyzer(cfg *config.Config) (*Analyzer, error) {
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
-	return &Analyzer{
-		client:     client,
-		model:      cfg.AI.Model,
-		guidelines: cfg.Guidelines.Criteria,
-	}, nil
+    a := &Analyzer{
+        client:     client,
+        model:      cfg.AI.Model,
+        guidelines: cfg.Guidelines.Criteria,
+        longVideoMinutes: cfg.Video.LongMinutes,
+        shortVideoMinutes: cfg.Video.ShortMinutes,
+    }
+
+    return a, nil
 }
 
 func (a *Analyzer) AnalyzeVideo(ctx context.Context, video *models.Video) (*models.Analysis, error) {
@@ -45,9 +52,15 @@ func (a *Analyzer) AnalyzeVideo(ctx context.Context, video *models.Video) (*mode
 		return nil, fmt.Errorf("video URL is required")
 	}
 
-	// Check if video is likely to exceed token limits (>1 hour)
-	durationMinutes := video.DurationSeconds / 60
-	useFallback := durationMinutes > 60
+    // Check video duration for skipping or fallback thresholds
+    durationMinutes := video.DurationSeconds / 60
+
+    // Skip short videos if configured
+    if a.shortVideoMinutes > 0 && durationMinutes > 0 && durationMinutes <= a.shortVideoMinutes {
+        log.Printf("Skipping short video: %s (%d minutes) - %s", video.Title, durationMinutes, video.ChannelTitle)
+        return nil, ErrShortVideoSkipped
+    }
+    useFallback := a.longVideoMinutes > 0 && durationMinutes > a.longVideoMinutes
 
 	if useFallback {
 		log.Printf("Using metadata-only analysis for long video: %s (%d minutes) - %s", video.Title, durationMinutes, video.ChannelTitle)
@@ -65,15 +78,15 @@ func (a *Analyzer) AnalyzeVideo(ctx context.Context, video *models.Video) (*mode
 		genai.NewContentFromParts(parts, genai.RoleUser),
 	}
 
-	result, err := a.client.Models.GenerateContent(ctx, a.model, contents, nil)
-	if err != nil {
-		// If token limit error, fallback to metadata analysis
-		if strings.Contains(err.Error(), "token count") || strings.Contains(err.Error(), "INVALID_ARGUMENT") {
-			log.Printf("Token limit exceeded for video %s (%d minutes), falling back to metadata-only analysis", video.Title, durationMinutes)
-			return a.analyzeMetadataOnly(ctx, video)
-		}
-		return nil, fmt.Errorf("failed to analyze video %s: %w", video.ID, err)
-	}
+    result, err := a.client.Models.GenerateContent(ctx, a.model, contents, nil)
+    if err != nil {
+        // If token limit error, fallback to metadata analysis
+        if strings.Contains(err.Error(), "token count") || strings.Contains(err.Error(), "INVALID_ARGUMENT") {
+            log.Printf("Token limit exceeded for video %s (%d minutes), falling back to metadata-only analysis", video.Title, durationMinutes)
+            return a.analyzeMetadataOnly(ctx, video)
+        }
+        return nil, fmt.Errorf("failed to analyze video %s: %w", video.ID, err)
+    }
 
 	responseText := result.Text()
 	if responseText == "" {
@@ -88,6 +101,9 @@ func (a *Analyzer) AnalyzeVideo(ctx context.Context, video *models.Video) (*mode
 
 	return analysis, nil
 }
+
+// ErrShortVideoSkipped signals the caller that the video was intentionally skipped due to duration
+var ErrShortVideoSkipped = errors.New("short video skipped")
 
 func (a *Analyzer) buildAnalysisPrompt(video *models.Video, metadataOnly bool) string {
 	guidelines := strings.Join(a.guidelines, "\n- ")
@@ -227,10 +243,10 @@ func (a *Analyzer) analyzeMetadataOnly(ctx context.Context, video *models.Video)
 		genai.NewContentFromParts(parts, genai.RoleUser),
 	}
 
-	result, err := a.client.Models.GenerateContent(ctx, a.model, contents, nil)
-	if err != nil {
-		return nil, fmt.Errorf("failed to analyze video metadata %s: %w", video.ID, err)
-	}
+    result, err := a.client.Models.GenerateContent(ctx, a.model, contents, nil)
+    if err != nil {
+        return nil, fmt.Errorf("failed to analyze video metadata %s: %w", video.ID, err)
+    }
 
 	responseText := result.Text()
 	if responseText == "" {
@@ -294,8 +310,8 @@ func (a *Analyzer) sanitizeJSON(jsonStr string) string {
 }
 
 func truncateString(s string, maxLength int) string {
-	if len(s) <= maxLength {
-		return s
-	}
-	return s[:maxLength] + "..."
+    if len(s) <= maxLength {
+        return s
+    }
+    return s[:maxLength] + "..."
 }

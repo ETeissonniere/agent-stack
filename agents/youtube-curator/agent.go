@@ -13,6 +13,7 @@ import (
 	"agent-stack/shared/scheduler"
 	"agent-stack/shared/storage"
 	"agent-stack/agents/youtube-curator/youtube"
+    "errors"
 )
 
 // YouTubeMetrics represents the metrics collected during a YouTube curation run
@@ -52,8 +53,8 @@ func (y *YouTubeAgent) Name() string {
 func (y *YouTubeAgent) Initialize() error {
     log.Printf("Initializing %s...", y.Name())
 	
-	if y.youtubeClient == nil {
-		client, err := youtube.NewClient(&y.config.YouTube)
+    if y.youtubeClient == nil {
+        client, err := youtube.NewClient(&y.config.YouTube)
 		if err != nil {
 			return fmt.Errorf("failed to create YouTube client: %w", err)
 		}
@@ -146,6 +147,7 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 
 	var analyses []*models.Analysis
 	var analysisErrors int
+	var skippedShorts int
 	var analyzedVideoIDs []string
 	
 	for i, video := range newVideos {
@@ -153,6 +155,10 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 		
 		analysis, err := y.analyzer.AnalyzeVideo(ctx, video)
 		if err != nil {
+            if errors.Is(err, ai.ErrShortVideoSkipped) {
+                skippedShorts++
+                continue
+            }
 			log.Printf("Warning: Failed to analyze video %s (%s): %v", video.ID, video.Title, err)
 			analysisErrors++
 			
@@ -200,7 +206,7 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 		}
 	}
 
-	log.Printf("Analysis complete: %d total, %d relevant", len(analyses), len(relevantVideos))
+	log.Printf("Analysis complete: %d total, %d relevant (%d short videos skipped)", len(analyses), len(relevantVideos), skippedShorts)
 
 	// Send email report if there are relevant videos
 	if len(relevantVideos) > 0 {
@@ -239,8 +245,8 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 		events.OnSuccess(metrics, duration)
 	}
 	
-	log.Printf("Session complete: %d total videos, %d skipped (already analyzed), %d analyzed, %d relevant", 
-		len(videos), skippedCount, len(analyses), len(relevantVideos))
+	log.Printf("Session complete: %d total videos, %d skipped (already analyzed), %d short videos skipped, %d analyzed, %d relevant", 
+		len(videos), skippedCount, skippedShorts, len(analyses), len(relevantVideos))
 
 	return nil
 }
