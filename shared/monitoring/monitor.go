@@ -15,12 +15,11 @@ func NewMonitor() *Monitor {
 	return &Monitor{}
 }
 
-func (m *Monitor) RecordSuccess(videosFound, videosAnalyzed, videosSelected int, duration time.Duration) {
+func (m *Monitor) RecordSuccess(summary string, duration time.Duration) {
 	m.lastRunSuccess = true
 	m.lastRunTime = time.Now()
 	
-	log.Printf("✅ Run completed successfully - found %d videos, analyzed %d, selected %d (took %v)", 
-		videosFound, videosAnalyzed, videosSelected, duration)
+	log.Printf("✅ Run completed successfully - %s (took %v)", summary, duration)
 }
 
 func (m *Monitor) RecordFailure(err error, duration time.Duration) {

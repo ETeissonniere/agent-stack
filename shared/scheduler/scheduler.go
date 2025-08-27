@@ -1,39 +1,55 @@
 package scheduler
 
 import (
-	"context"
-	"fmt"
-	"log"
-	"time"
+    "context"
+    "fmt"
+    "log"
+    "time"
 
 	"agent-stack/shared/config"
 	"agent-stack/shared/monitoring"
 
-	"github.com/robfig/cron/v3"
+    "github.com/robfig/cron/v3"
 )
+
+// Metrics defines the common interface for agent metrics
+type Metrics interface {
+	// GetSummary returns a human-readable summary of the run
+	GetSummary() string
+}
+
+// AgentEvents provides callbacks for monitoring agent execution
+type AgentEvents struct {
+	OnSuccess func(metrics Metrics, duration time.Duration)
+	OnFailure func(err error, duration time.Duration)
+}
 
 // Agent defines the interface that all agents must implement
 type Agent interface {
-	Name() string
-	RunOnce(ctx context.Context) error
-	Initialize() error
+    Name() string
+    RunOnce(ctx context.Context, events *AgentEvents) error
+    Initialize() error
 }
+
 
 // Scheduler manages the execution of agents on a schedule
 type Scheduler struct {
-	config  *config.Config
-	monitor *monitoring.Monitor
-	agent   Agent
-	cron    *cron.Cron
+    config  *config.Config
+    monitor *monitoring.Monitor
+    agent   Agent
+    cron    *cron.Cron
 }
 
 func New(cfg *config.Config, agent Agent) *Scheduler {
-	return &Scheduler{
-		config:  cfg,
-		monitor: monitoring.NewMonitor(),
-		agent:   agent,
-		cron:    cron.New(cron.WithSeconds()),
-	}
+    m := monitoring.NewMonitor()
+
+    return &Scheduler{
+        config:  cfg,
+        monitor: m,
+        agent:   agent,
+        // Prevent overlapping runs
+        cron:    cron.New(cron.WithSeconds(), cron.WithChain(cron.SkipIfStillRunning(cron.DefaultLogger))),
+    }
 }
 
 func (s *Scheduler) Start(ctx context.Context) error {
@@ -41,9 +57,9 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to initialize agent: %w", err)
 	}
 
-	// Start health check server
-	healthServer := monitoring.NewHealthServer(s.monitor, "8080")
-	healthServer.Start()
+    // Start health check server (configurable via config, defaults to 8080)
+    healthServer := monitoring.NewHealthServer(s.monitor, fmt.Sprintf("%d", s.config.Monitoring.HealthPort))
+    healthServer.Start()
 
 	_, err := s.cron.AddFunc(s.config.Schedule, func() {
 		if err := s.RunOnce(ctx); err != nil {
@@ -70,16 +86,23 @@ func (s *Scheduler) RunOnce(ctx context.Context) error {
 	
 	log.Printf("Starting %s run...", agentName)
 	
-	if err := s.agent.RunOnce(ctx); err != nil {
+	// Create event handlers for monitoring
+	events := &AgentEvents{
+		OnSuccess: func(metrics Metrics, duration time.Duration) {
+			s.monitor.RecordSuccess(metrics.GetSummary(), duration)
+			log.Printf("%s run completed successfully in %v", agentName, duration)
+		},
+		OnFailure: func(err error, duration time.Duration) {
+			s.monitor.RecordFailure(fmt.Errorf("%s partial failure: %w", agentName, err), duration)
+			log.Printf("%s partial failure: %v", agentName, err)
+		},
+	}
+	
+	if err := s.agent.RunOnce(ctx, events); err != nil {
 		duration := time.Since(startTime)
 		s.monitor.RecordFailure(fmt.Errorf("%s failed: %w", agentName, err), duration)
 		return fmt.Errorf("%s run failed: %w", agentName, err)
 	}
 
-	// Record successful completion - agents can provide their own metrics via monitor
-	duration := time.Since(startTime)
-	s.monitor.RecordSuccess(0, 0, 0, duration) // Generic success - agents can override
-	
-	log.Printf("%s run completed successfully in %v", agentName, duration)
 	return nil
 }
