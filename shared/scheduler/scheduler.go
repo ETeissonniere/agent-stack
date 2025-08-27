@@ -20,8 +20,9 @@ type Metrics interface {
 
 // AgentEvents provides callbacks for monitoring agent execution
 type AgentEvents struct {
-	OnSuccess func(metrics Metrics, duration time.Duration)
-	OnFailure func(err error, duration time.Duration)
+	OnSuccess        func(metrics Metrics, duration time.Duration)
+	OnPartialFailure func(err error, duration time.Duration)
+	OnCriticalFailure func(err error, duration time.Duration)
 }
 
 // Agent defines the interface that all agents must implement
@@ -90,17 +91,18 @@ func (s *Scheduler) RunOnce(ctx context.Context) error {
 	events := &AgentEvents{
 		OnSuccess: func(metrics Metrics, duration time.Duration) {
 			s.monitor.RecordSuccess(metrics.GetSummary(), duration)
-			log.Printf("%s run completed successfully in %v", agentName, duration)
 		},
-		OnFailure: func(err error, duration time.Duration) {
-			s.monitor.RecordFailure(fmt.Errorf("%s partial failure: %w", agentName, err), duration)
-			log.Printf("%s partial failure: %v", agentName, err)
+		OnPartialFailure: func(err error, duration time.Duration) {
+			s.monitor.RecordPartialFailure(fmt.Errorf("%s partial failure: %w", agentName, err), duration)
+		},
+		OnCriticalFailure: func(err error, duration time.Duration) {
+			s.monitor.RecordCriticalFailure(fmt.Errorf("%s critical failure: %w", agentName, err), duration)
 		},
 	}
 	
 	if err := s.agent.RunOnce(ctx, events); err != nil {
 		duration := time.Since(startTime)
-		s.monitor.RecordFailure(fmt.Errorf("%s failed: %w", agentName, err), duration)
+		s.monitor.RecordCriticalFailure(fmt.Errorf("%s failed: %w", agentName, err), duration)
 		return fmt.Errorf("%s run failed: %w", agentName, err)
 	}
 
