@@ -1,15 +1,16 @@
 package youtube
 
 import (
-	"context"
-	"encoding/json"
-	"fmt"
-	"log"
-	"os"
-	"regexp"
-	"strconv"
-	"strings"
-	"time"
+    "context"
+    "encoding/json"
+    "fmt"
+    "log"
+    "os"
+    "path/filepath"
+    "regexp"
+    "strconv"
+    "strings"
+    "time"
 
 	"agent-stack/internal/models"
 	"agent-stack/shared/config"
@@ -124,11 +125,18 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 }
 
 func saveToken(path string, token *oauth2.Token) error {
-	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-	if err != nil {
-		return fmt.Errorf("unable to cache oauth token: %w", err)
-	}
-	defer f.Close()
+    // Ensure parent directory exists
+    if dir := filepath.Dir(path); dir != "." && dir != "" {
+        if err := os.MkdirAll(dir, 0700); err != nil {
+            return fmt.Errorf("unable to create token directory: %w", err)
+        }
+    }
+
+    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+    if err != nil {
+        return fmt.Errorf("unable to cache oauth token: %w", err)
+    }
+    defer f.Close()
 	
 	if err := json.NewEncoder(f).Encode(token); err != nil {
 		return fmt.Errorf("failed to encode oauth token: %w", err)
@@ -177,7 +185,7 @@ func parseDurationSeconds(duration string) int {
 }
 
 func (c *Client) GetSubscriptionVideos(ctx context.Context, maxResults int64) ([]*models.Video, error) {
-	since := time.Now().AddDate(0, 0, -1) // Last 24 hours
+    since := time.Now().AddDate(0, 0, -1) // Last 24 hours
 	
 	// Step 1: Get user's subscriptions
 	subscriptionsCall := c.service.Subscriptions.List([]string{"snippet"}).
@@ -235,7 +243,12 @@ func (c *Client) GetSubscriptionVideos(ctx context.Context, maxResults int64) ([
 
 	// Step 3: Get recent videos from upload playlists
 	var allVideoIDs []string
-	videosPerChannel := maxResults / int64(len(channelUploadPlaylists))
+    if len(channelUploadPlaylists) == 0 {
+        log.Println("No upload playlists resolved for subscriptions")
+        return []*models.Video{}, nil
+    }
+
+    videosPerChannel := maxResults / int64(len(channelUploadPlaylists))
 	if videosPerChannel < 1 {
 		videosPerChannel = 1
 	}
