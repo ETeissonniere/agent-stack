@@ -127,10 +127,7 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 		newVideos = append(newVideos, video)
 	}
 
-	log.Printf("Found %d videos (%d new, %d already analyzed)", len(videos), len(newVideos), skippedCount)
-
 	if len(newVideos) == 0 {
-		log.Println("No new videos to analyze")
 		duration := time.Since(startTime)
 		if events != nil && events.OnSuccess != nil {
 			metrics := YouTubeMetrics{
@@ -159,12 +156,11 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
                 skippedShorts++
                 continue
             }
-			log.Printf("Warning: Failed to analyze video %s (%s): %v", video.ID, video.Title, err)
 			analysisErrors++
 			
-			// Report individual analysis failure
-			if events != nil && events.OnFailure != nil {
-				events.OnFailure(fmt.Errorf("failed to analyze video %s: %w", video.Title, err), time.Since(startTime))
+			// Report individual analysis failure as partial (recoverable)
+			if events != nil && events.OnPartialFailure != nil {
+				events.OnPartialFailure(fmt.Errorf("failed to analyze video %s: %w", video.Title, err), time.Since(startTime))
 			}
 			
 			if analysisErrors > len(newVideos)/2 {
@@ -182,19 +178,27 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 	// Mark videos as analyzed (even if they weren't relevant)
 	if len(analyzedVideoIDs) > 0 {
 		if err := y.videoTracker.MarkMultipleAnalyzed(analyzedVideoIDs); err != nil {
-			log.Printf("Warning: Failed to mark videos as analyzed: %v", err)
-			// Report video tracking failure
-			if events != nil && events.OnFailure != nil {
-				events.OnFailure(fmt.Errorf("failed to mark videos as analyzed: %w", err), time.Since(startTime))
+			// Report video tracking failure as partial (doesn't affect core functionality)
+			if events != nil && events.OnPartialFailure != nil {
+				events.OnPartialFailure(fmt.Errorf("failed to mark videos as analyzed: %w", err), time.Since(startTime))
 			}
 		}
 	}
 
-	if analysisErrors > 0 {
-		log.Printf("Analysis completed with %d errors", analysisErrors)
-		// Report summary of analysis errors
-		if events != nil && events.OnFailure != nil {
-			events.OnFailure(fmt.Errorf("%d analysis errors occurred during processing", analysisErrors), time.Since(startTime))
+	if analysisErrors > 0 {		
+		// Check if ALL videos failed to analyze (critical failure)
+		if len(analyses) == 0 && len(newVideos) > 0 {
+			// We had videos to analyze but ALL of them failed
+			err := fmt.Errorf("all %d videos failed analysis - core functionality broken", len(newVideos))
+			if events != nil && events.OnCriticalFailure != nil {
+				events.OnCriticalFailure(err, time.Since(startTime))
+			}
+			return err
+		} else {
+			// Some videos failed, but we still processed others (partial failure)
+			if events != nil && events.OnPartialFailure != nil {
+				events.OnPartialFailure(fmt.Errorf("%d analysis errors occurred during processing", analysisErrors), time.Since(startTime))
+			}
 		}
 	}
 
@@ -206,8 +210,6 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 		}
 	}
 
-	log.Printf("Analysis complete: %d total, %d relevant (%d short videos skipped)", len(analyses), len(relevantVideos), skippedShorts)
-
 	// Send email report if there are relevant videos
 	if len(relevantVideos) > 0 {
 		report := &models.EmailReport{
@@ -217,19 +219,13 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 			Selected: len(relevantVideos),
 		}
 
-		log.Printf("Sending email report with %d videos", len(relevantVideos))
 		if err := y.emailSender.SendReport(report); err != nil {
-			// Report email failure as partial failure, don't stop execution
-			if events != nil && events.OnFailure != nil {
-				events.OnFailure(fmt.Errorf("failed to send email report: %w", err), time.Since(startTime))
+			// Report email failure as CRITICAL - email delivery is core functionality
+			if events != nil && events.OnCriticalFailure != nil {
+				events.OnCriticalFailure(fmt.Errorf("failed to send email report: %w", err), time.Since(startTime))
 			}
-			log.Printf("Warning: Failed to send email report: %v", err)
-		} else {
-			log.Println("Email report sent successfully")
+			return fmt.Errorf("failed to send email report: %w", err)
 		}
-		log.Println("Email report sent successfully")
-	} else {
-		log.Println("No relevant videos found, skipping email")
 	}
 
 	// Record successful completion with detailed metrics

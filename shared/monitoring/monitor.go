@@ -22,11 +22,16 @@ func (m *Monitor) RecordSuccess(summary string, duration time.Duration) {
 	log.Printf("✅ Run completed successfully - %s (took %v)", summary, duration)
 }
 
-func (m *Monitor) RecordFailure(err error, duration time.Duration) {
+func (m *Monitor) RecordPartialFailure(err error, duration time.Duration) {
+	// Don't change health status for partial failures
+	log.Printf("⚠️  PARTIAL FAILURE: %s (Duration: %v)", err.Error(), duration)
+}
+
+func (m *Monitor) RecordCriticalFailure(err error, duration time.Duration) {
 	m.lastRunSuccess = false
 	m.lastRunTime = time.Now()
 	
-	log.Printf("🚨 CRON JOB FAILED: %s (Duration: %v)", err.Error(), duration)
+	log.Printf("🚨 CRITICAL FAILURE: %s (Duration: %v)", err.Error(), duration)
 	log.Printf("Failure occurred at: %s", time.Now().Format("2006-01-02 15:04:05"))
 }
 
@@ -35,8 +40,8 @@ func (m *Monitor) IsHealthy() bool {
 		return true // No runs yet, assume healthy
 	}
 	
-	// Consider unhealthy if more than 26 hours since last run
-	return time.Since(m.lastRunTime) <= 26*time.Hour
+	// Simple and reliable: healthy if last run was successful
+	return m.lastRunSuccess
 }
 
 func (m *Monitor) GetStatusSummary() string {
