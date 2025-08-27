@@ -47,3 +47,6 @@ docker-compose.override.yml
 # Temporary files
 *.tmp
 *.temp
+
+# Artifacts
+./youtube-curator
