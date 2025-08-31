@@ -36,10 +36,20 @@ func main() {
 		if err := s.RunOnce(ctx); err != nil {
 			log.Fatalf("Failed to run: %v", err)
 		}
+		
+		// Stop token refresher when running once
+		agent.StopTokenRefresher()
 		return
 	}
 
 	fmt.Println("Starting scheduler...")
+	
+	// Ensure cleanup on exit
+	defer func() {
+		log.Println("Shutting down...")
+		agent.StopTokenRefresher()
+	}()
+	
 	if err := s.Start(ctx); err != nil {
 		log.Fatalf("Scheduler failed: %v", err)
 	}

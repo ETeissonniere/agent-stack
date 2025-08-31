@@ -42,6 +42,18 @@ The application includes video duration filters to skip very short or very long 
 
 This helps focus analysis on substantive content while avoiding shorts and overly long videos.
 
+### YouTube Token Management
+
+The application automatically manages YouTube OAuth tokens to prevent expiration:
+
+- **Automatic Token Refresh**: Tokens are automatically refreshed when they expire during API calls
+- **Background Refresh**: A background goroutine refreshes tokens every 30 minutes (configurable via `youtube.token_refresh_minutes`)
+- **Persistent Storage**: Refreshed tokens are immediately saved to disk at `youtube.token_file` location
+- **Pre-run Refresh**: Tokens are proactively refreshed before each scheduled run as an extra safety measure
+- **Graceful Shutdown**: The background refresher properly stops when the application exits
+
+This ensures your YouTube authentication stays valid indefinitely without manual intervention. The refresh token from the initial OAuth flow is preserved and used to obtain new access tokens automatically.
+
 ### Schedule Configuration
 
 The application uses a 6-field CRON format (with seconds) powered by `robfig/cron/v3`:

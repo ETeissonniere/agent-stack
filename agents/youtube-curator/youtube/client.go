@@ -10,6 +10,7 @@ import (
     "regexp"
     "strconv"
     "strings"
+    "sync"
     "time"
 
 	"agent-stack/internal/models"
@@ -22,8 +23,10 @@ import (
 )
 
 type Client struct {
-    service *youtube.Service
-    config  *config.YouTubeConfig
+    service     *youtube.Service
+    config      *config.YouTubeConfig
+    oauthConfig *oauth2.Config
+    token       *oauth2.Token
 }
 
 func NewClient(cfg *config.YouTubeConfig) (*Client, error) {
@@ -44,8 +47,15 @@ func NewClient(cfg *config.YouTubeConfig) (*Client, error) {
 		return nil, fmt.Errorf("failed to get OAuth token: %w", err)
 	}
 
-	// Create authenticated HTTP client
-	httpClient := oauthConfig.Client(ctx, token)
+	// Create token source that auto-refreshes and saves token
+	tokenSource := &tokenSaver{
+		config:    oauthConfig,
+		token:     token,
+		tokenFile: cfg.TokenFile,
+	}
+
+	// Create authenticated HTTP client with auto-refresh
+	httpClient := oauth2.NewClient(ctx, tokenSource)
 
 	// Create YouTube service
 	service, err := youtube.NewService(ctx, option.WithHTTPClient(httpClient))
@@ -54,22 +64,73 @@ func NewClient(cfg *config.YouTubeConfig) (*Client, error) {
 	}
 
     return &Client{
-        service: service,
-        config:  cfg,
+        service:     service,
+        config:      cfg,
+        oauthConfig: oauthConfig,
+        token:       token,
     }, nil
 }
 
+// tokenSaver wraps an oauth2.TokenSource to automatically save refreshed tokens.
+// It intercepts token refresh operations and persists the new token to disk,
+// ensuring that refreshed tokens survive application restarts.
+type tokenSaver struct {
+	config    *oauth2.Config
+	token     *oauth2.Token
+	tokenFile string
+	mu        sync.Mutex // Protects concurrent token refresh operations
+}
+
+// Token implements oauth2.TokenSource interface.
+// It returns the current token, refreshing it if necessary and saving any
+// refreshed token to disk. This ensures token persistence across restarts.
+func (ts *tokenSaver) Token() (*oauth2.Token, error) {
+	ts.mu.Lock()
+	defer ts.mu.Unlock()
+
+	// Create a token source that can refresh the token
+	tokenSource := ts.config.TokenSource(context.Background(), ts.token)
+	
+	// Get the token (this will refresh if needed)
+	newToken, err := tokenSource.Token()
+	if err != nil {
+		return nil, err
+	}
+
+	// If the token was refreshed, save it
+	if newToken.AccessToken != ts.token.AccessToken {
+		log.Println("Token refreshed, saving to file")
+		ts.token = newToken
+		if err := saveToken(ts.tokenFile, newToken); err != nil {
+			log.Printf("Warning: Failed to save refreshed token: %v", err)
+		}
+	}
+
+	return newToken, nil
+}
+
+// getToken retrieves an OAuth2 token from disk or initiates the OAuth flow if needed.
+// It prioritizes loading existing tokens with refresh tokens, even if expired,
+// as they can be automatically refreshed. Only initiates new OAuth flow if no
+// valid refresh token exists.
 func getToken(config *oauth2.Config, tokenFile string) (*oauth2.Token, error) {
 	// Try to load token from file
 	tok, err := tokenFromFile(tokenFile)
 	if err == nil {
-		// Check if token is still valid or can be refreshed
-		if tok.Valid() || tok.RefreshToken != "" {
+		// Even if token appears expired, keep it if it has a refresh token
+		// The tokenSaver will handle refreshing it
+		if tok.RefreshToken != "" {
+			log.Printf("Loaded token from file (expires: %v)", tok.Expiry)
+			return tok, nil
+		}
+		// If no refresh token but still valid, use it
+		if tok.Valid() {
 			return tok, nil
 		}
 	}
 
-	// If token doesn't exist or is invalid, get new one
+	// If token doesn't exist or has no refresh token, get new one
+	log.Println("Getting new token from web...")
 	tok, err = getTokenFromWeb(config)
 	if err != nil {
 		return nil, err
@@ -182,6 +243,35 @@ func parseDurationSeconds(duration string) int {
 	}
 	
 	return totalSeconds
+}
+
+// RefreshToken manually triggers a token refresh if needed.
+// This is called proactively before scheduled runs and periodically in the background
+// to ensure the token stays fresh. The refreshed token is automatically saved to disk.
+func (c *Client) RefreshToken() error {
+	log.Println("Checking if token needs refresh...")
+	
+	// Create a token source that can refresh the token
+	tokenSource := c.oauthConfig.TokenSource(context.Background(), c.token)
+	
+	// Get the token (this will refresh if needed)
+	newToken, err := tokenSource.Token()
+	if err != nil {
+		return fmt.Errorf("failed to refresh token: %w", err)
+	}
+
+	// If the token was refreshed, save it
+	if newToken.AccessToken != c.token.AccessToken {
+		log.Println("Token refreshed, saving to file")
+		c.token = newToken
+		if err := saveToken(c.config.TokenFile, newToken); err != nil {
+			return fmt.Errorf("failed to save refreshed token: %w", err)
+		}
+	} else {
+		log.Printf("Token still valid until %v", c.token.Expiry)
+	}
+
+	return nil
 }
 
 func (c *Client) GetSubscriptionVideos(ctx context.Context, maxResults int64) ([]*models.Video, error) {

@@ -16,6 +16,7 @@ Analyzes your YouTube subscriptions using AI to find the most relevant videos wo
 - 🗃️ **Smart Deduplication**: Avoids re-analyzing videos from the last 7 days
 - ⚡ **Content Filtering**: Automatically filters out YouTube Shorts (≤60 seconds) to focus on substantive content
 - 🎬 **Long Video Handling**: Special metadata-only analysis for extra-long videos (>1 hour) to avoid token limits
+- 🔄 **Automatic Token Refresh**: YouTube OAuth tokens are automatically refreshed to prevent expiration
 
 **Example Email Output:**
 
@@ -117,6 +118,7 @@ youtube:
   client_id: "" # Set via GOOGLE_CLIENT_ID env var
   client_secret: "" # Set via GOOGLE_CLIENT_SECRET env var
   token_file: "data/youtube_token.json"
+  token_refresh_minutes: 30 # Auto-refresh tokens every 30 minutes
 
 ai:
   gemini_api_key: "" # Set via GEMINI_API_KEY env var
@@ -157,6 +159,14 @@ video:
 
  - `short_minutes`: Minutes threshold to skip short videos (e.g., YouTube Shorts). Defaults to 1.
  - `long_minutes`: Minutes threshold to switch to metadata-only analysis for very long videos. Defaults to 60.
+
+### YouTube Token Management
+
+The application automatically manages YouTube OAuth tokens:
+- **Automatic Refresh**: Tokens refresh automatically when expired during API calls
+- **Background Refresh**: Runs every 30 minutes (configurable via `token_refresh_minutes`)
+- **Persistent Storage**: Refreshed tokens are saved to disk immediately
+- **No Manual Re-auth**: Once authenticated, tokens stay valid indefinitely
 
 ## Usage
 
@@ -250,6 +260,11 @@ You can change the Gemini model in config:
 - Verify YouTube API key is correct
 - Check if you have public subscriptions
 - Ensure API quotas aren't exceeded
+
+**Token expired:**
+- The app now automatically refreshes tokens
+- If issues persist, delete `data/youtube_token.json` and re-authenticate
+- Check logs for token refresh errors
 
 **Email not sending:**
 - Verify SMTP credentials
