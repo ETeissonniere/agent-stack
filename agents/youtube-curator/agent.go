@@ -33,11 +33,13 @@ func (m YouTubeMetrics) GetSummary() string {
 
 // YouTubeAgent implements the scheduler.Agent interface
 type YouTubeAgent struct {
-    config        *config.Config
-    youtubeClient *youtube.Client
-    analyzer      *ai.Analyzer
-    emailSender   *email.Sender
-    videoTracker  *storage.VideoTracker
+    config              *config.Config
+    youtubeClient       *youtube.Client
+    analyzer            *ai.Analyzer
+    emailSender         *email.Sender
+    videoTracker        *storage.VideoTracker
+    tokenRefreshTicker  *time.Ticker
+    tokenRefreshStop    chan bool
 }
 
 func NewYouTubeAgent(cfg *config.Config) *YouTubeAgent {
@@ -60,6 +62,10 @@ func (y *YouTubeAgent) Initialize() error {
 		}
 		y.youtubeClient = client
 		log.Println("YouTube client initialized")
+		
+		// Start background token refresher with configured interval
+		refreshInterval := time.Duration(y.config.YouTube.TokenRefreshMinutes) * time.Minute
+		y.startTokenRefresher(refreshInterval)
 	}
 
 	if y.analyzer == nil {
@@ -89,8 +95,66 @@ func (y *YouTubeAgent) Initialize() error {
     return nil
 }
 
+// startTokenRefresher starts a background goroutine that refreshes the YouTube OAuth token periodically.
+// This ensures the token stays fresh even during long periods of inactivity between scheduled runs.
+// The refresher runs at the specified interval and saves refreshed tokens to disk automatically.
+func (y *YouTubeAgent) startTokenRefresher(interval time.Duration) {
+	if y.tokenRefreshTicker != nil {
+		// Already running
+		return
+	}
+	
+	log.Printf("Starting background token refresher (interval: %v)", interval)
+	y.tokenRefreshTicker = time.NewTicker(interval)
+	y.tokenRefreshStop = make(chan bool)
+	
+	go func() {
+		for {
+			select {
+			case <-y.tokenRefreshTicker.C:
+				log.Println("Background token refresh triggered")
+				if y.youtubeClient != nil {
+					if err := y.youtubeClient.RefreshToken(); err != nil {
+						log.Printf("Background token refresh failed: %v", err)
+					} else {
+						log.Println("Background token refresh successful")
+					}
+				} else {
+					log.Println("Background token refresh skipped - client not initialized")
+				}
+			case <-y.tokenRefreshStop:
+				log.Println("Stopping background token refresher")
+				return
+			}
+		}
+	}()
+}
+
+// StopTokenRefresher stops the background token refresh goroutine gracefully.
+// This should be called when the application shuts down to ensure clean termination.
+// It's safe to call multiple times or even if the refresher was never started.
+func (y *YouTubeAgent) StopTokenRefresher() {
+	if y.tokenRefreshTicker != nil {
+		y.tokenRefreshTicker.Stop()
+		if y.tokenRefreshStop != nil {
+			y.tokenRefreshStop <- true
+			close(y.tokenRefreshStop)
+		}
+		y.tokenRefreshTicker = nil
+		y.tokenRefreshStop = nil
+	}
+}
+
 func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvents) error {
 	startTime := time.Now()
+	
+	// Proactively refresh token if needed before starting work
+	if y.youtubeClient != nil {
+		if err := y.youtubeClient.RefreshToken(); err != nil {
+			log.Printf("Warning: Failed to refresh token: %v", err)
+			// Continue anyway - the tokenSaver will auto-refresh on API calls
+		}
+	}
 	
 	// Fetch videos from subscriptions
 	log.Println("Fetching videos from YouTube subscriptions...")

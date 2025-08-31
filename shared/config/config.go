@@ -20,9 +20,10 @@ type Config struct {
 }
 
 type YouTubeConfig struct {
-	ClientID     string `yaml:"client_id" env:"GOOGLE_CLIENT_ID"`
-	ClientSecret string `yaml:"client_secret" env:"GOOGLE_CLIENT_SECRET"`
-	TokenFile    string `yaml:"token_file"`
+	ClientID            string `yaml:"client_id" env:"GOOGLE_CLIENT_ID"`
+	ClientSecret        string `yaml:"client_secret" env:"GOOGLE_CLIENT_SECRET"`
+	TokenFile           string `yaml:"token_file"`
+	TokenRefreshMinutes int    `yaml:"token_refresh_minutes"`
 }
 
 type AIConfig struct {
@@ -78,6 +79,9 @@ func Load() (*Config, error) {
 	}
     if cfg.YouTube.TokenFile == "" {
         cfg.YouTube.TokenFile = "data/youtube_token.json"
+    }
+    if cfg.YouTube.TokenRefreshMinutes == 0 {
+        cfg.YouTube.TokenRefreshMinutes = 30 // Default to 30 minutes
     }
     if cfg.AI.GeminiAPIKey == "" {
         cfg.AI.GeminiAPIKey = os.Getenv("GEMINI_API_KEY")
