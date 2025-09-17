@@ -337,13 +337,6 @@ For issues and questions:
 2. Review logs for error details
 3. Open an issue with reproduction steps
 
-## Policy Site
-
-- Live policies are hosted at https://eteissonniere.github.io/agent-stack/ and update automatically from `docs/` on `main`.
-- Terms of Service (share with Google during OAuth verification): https://eteissonniere.github.io/agent-stack/terms-of-service.html
-- Privacy Policy (share with Google during OAuth verification): https://eteissonniere.github.io/agent-stack/privacy-policy.html
-- Policy contact channel: open a GitHub issue on this repository.
-
 ## Project Structure
 
 ```
