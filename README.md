@@ -322,6 +322,13 @@ For issues and questions:
 2. Review logs for error details
 3. Open an issue with reproduction steps
 
+## Policy Site
+
+- Policy markdown lives under `docs/` for GitHub Pages.
+- Enable Pages in the repo settings: `Settings → Pages → Build and deployment → Source: Deploy from a branch`, then pick `main` and `/docs`.
+- Policy contact channel: open a GitHub issue on this repository.
+- After Pages deploys, share the URLs with the Google verification team.
+
 ## Project Structure
 
 ```
