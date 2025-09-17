@@ -1,6 +1,8 @@
 name: Docker Multi-Arch Build
 
 on:
+  workflow_dispatch:
+    # Manual runs allowed, but job is guarded to main below
   push:
     branches: [ main ]
     tags:
@@ -13,8 +15,13 @@ permissions:
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository_owner }}/agent-stack
 
+concurrency:
+  group: docker-multiarch-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
