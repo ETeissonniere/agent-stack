@@ -2,6 +2,7 @@ version: '3.8'
 
 services:
   youtube-curator:
+    image: ghcr.io/eteissonniere/agent-stack:latest
     build: .
     container_name: youtube-curator
     restart: unless-stopped

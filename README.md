@@ -77,7 +77,7 @@ docker run --rm -it --env-file .env \
 docker-compose up -d
 ```
 
-> **Prebuilt image:** GitHub Actions publishes multi-architecture images (amd64/arm64/armv7) to `ghcr.io/eteissonniere/agent-stack`. Pull the latest build if you prefer not to build locally.
+> **Prebuilt image:** GitHub Actions publishes multi-architecture images (amd64/arm64/armv7) to `ghcr.io/eteissonniere/agent-stack`. Docker Compose already references this image, so `docker-compose up -d` will pull it automatically. Run `docker-compose pull` to refresh.
 
 ```bash
 # Fetch the published image
@@ -90,7 +90,7 @@ docker run --rm -it --env-file .env \
   ghcr.io/eteissonniere/agent-stack:latest ./youtube-curator --once
 ```
 
-To use the registry image with Docker Compose, replace the `build: .` stanza with `image: ghcr.io/eteissonniere/agent-stack:latest` (or a specific tag).
+If you prefer to build locally (e.g., after code changes), run `docker-compose build` to rebuild the image before starting the stack.
 
 #### Option 2: Local Build
 
