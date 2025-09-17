@@ -33,8 +33,9 @@ type Client struct {
 func NewClient(cfg *config.YouTubeConfig) (*Client, error) {
 	ctx := context.Background()
 
-	// Create OAuth2 config. We keep the legacy out-of-band redirect as a
-	// fallback, but device authorization is the preferred path.
+	// Create OAuth2 config. The out-of-band redirect is retained for
+	// compatibility with any existing saved tokens, but the device
+	// authorization flow is the only supported bootstrap path.
 	oauthConfig := &oauth2.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
@@ -156,11 +157,6 @@ func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
 			log.Printf("Device authorization flow failed: %v", err)
 		}
 
-		if os.Getenv("YOUTUBE_ENABLE_OOB_FALLBACK") != "" {
-			log.Printf("Legacy OOB fallback enabled via YOUTUBE_ENABLE_OOB_FALLBACK. Note: Google no longer recommends this flow.")
-			return getTokenWithOOB(config)
-		}
-
 		return nil, fmt.Errorf("device authorization failed: %w. Ensure your OAuth client is created as 'TVs and Limited Input devices' and that the YouTube Data API v3 is enabled.", err)
 	}
 }
@@ -189,37 +185,6 @@ func getTokenWithDeviceFlow(config *oauth2.Config) (*oauth2.Token, error) {
 	tok, err := config.DeviceAccessToken(ctx, resp, oauth2.AccessTypeOffline)
 	if err != nil {
 		return nil, fmt.Errorf("device authorization did not complete: %w", err)
-	}
-
-	fmt.Printf("\n✅ Authorization successful! Token saved.\n")
-	fmt.Printf(strings.Repeat("=", 80) + "\n\n")
-
-	return tok, nil
-}
-
-func getTokenWithOOB(config *oauth2.Config) (*oauth2.Token, error) {
-	// Generate auth URL for out-of-band flow (legacy fallback)
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline, oauth2.ApprovalForce)
-
-	fmt.Printf("\n" + strings.Repeat("=", 80) + "\n")
-	fmt.Printf("YOUTUBE OAUTH SETUP REQUIRED\n")
-	fmt.Printf(strings.Repeat("=", 80) + "\n")
-	fmt.Printf("1. Visit this URL in your browser:\n\n")
-	fmt.Printf("   %v\n\n", authURL)
-	fmt.Printf("2. Complete the authorization process\n")
-	fmt.Printf("3. Copy the authorization code from the browser\n")
-	fmt.Printf("4. Paste it below and press Enter\n")
-	fmt.Printf(strings.Repeat("-", 80) + "\n")
-	fmt.Printf("Authorization code: ")
-
-	var authCode string
-	if _, err := fmt.Scanln(&authCode); err != nil {
-		return nil, fmt.Errorf("unable to read authorization code: %w", err)
-	}
-
-	tok, err := config.Exchange(context.TODO(), authCode)
-	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve token from web: %w", err)
 	}
 
 	fmt.Printf("\n✅ Authorization successful! Token saved.\n")
