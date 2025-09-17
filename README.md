@@ -324,10 +324,10 @@ For issues and questions:
 
 ## Policy Site
 
-- Policy markdown lives under `docs/` for GitHub Pages.
-- Enable Pages in the repo settings: `Settings → Pages → Build and deployment → Source: Deploy from a branch`, then pick `main` and `/docs`.
+- Live policies are hosted at https://eteissonniere.github.io/agent-stack/ and update automatically from `docs/` on `main`.
+- Terms of Service (share with Google during OAuth verification): https://eteissonniere.github.io/agent-stack/terms-of-service.html
+- Privacy Policy (share with Google during OAuth verification): https://eteissonniere.github.io/agent-stack/privacy-policy.html
 - Policy contact channel: open a GitHub issue on this repository.
-- After Pages deploys, share the URLs with the Google verification team.
 
 ## Project Structure
 
