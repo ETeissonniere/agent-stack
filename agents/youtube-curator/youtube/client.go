@@ -33,13 +33,10 @@ type Client struct {
 func NewClient(cfg *config.YouTubeConfig) (*Client, error) {
 	ctx := context.Background()
 
-	// Create OAuth2 config. The out-of-band redirect is retained for
-	// compatibility with any existing saved tokens, but the device
-	// authorization flow is the only supported bootstrap path.
+	// Create OAuth2 config for the device authorization flow.
 	oauthConfig := &oauth2.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
-		RedirectURL:  "urn:ietf:wg:oauth:2.0:oob", // Legacy fallback only
 		Scopes:       []string{"https://www.googleapis.com/auth/youtube.readonly"},
 		Endpoint:     google.Endpoint,
 	}
