@@ -32,11 +32,12 @@ type Client struct {
 func NewClient(cfg *config.YouTubeConfig) (*Client, error) {
 	ctx := context.Background()
 
-	// Create OAuth2 config with no redirect URL (OOB flow)
+	// Create OAuth2 config. We keep the legacy out-of-band redirect as a
+	// fallback, but device authorization is the preferred path.
 	oauthConfig := &oauth2.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
-		RedirectURL:  "urn:ietf:wg:oauth:2.0:oob", // Out-of-band flow
+		RedirectURL:  "urn:ietf:wg:oauth:2.0:oob", // Legacy fallback only
 		Scopes:       []string{"https://www.googleapis.com/auth/youtube.readonly"},
 		Endpoint:     google.Endpoint,
 	}
@@ -144,7 +145,49 @@ func getToken(config *oauth2.Config, tokenFile string) (*oauth2.Token, error) {
 }
 
 func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
-	// Generate auth URL for out-of-band flow
+	if tok, err := getTokenWithDeviceFlow(config); err == nil {
+		return tok, nil
+	} else {
+		log.Printf("Device authorization flow failed: %v. Falling back to copy/paste authorization flow.", err)
+	}
+
+	return getTokenWithOOB(config)
+}
+
+func getTokenWithDeviceFlow(config *oauth2.Config) (*oauth2.Token, error) {
+	ctx := context.Background()
+
+	resp, err := config.DeviceAuth(ctx, oauth2.AccessTypeOffline)
+	if err != nil {
+		return nil, fmt.Errorf("unable to start device authorization: %w", err)
+	}
+
+	fmt.Printf("\n" + strings.Repeat("=", 80) + "\n")
+	fmt.Printf("YOUTUBE DEVICE AUTHORIZATION REQUIRED\n")
+	fmt.Printf(strings.Repeat("=", 80) + "\n")
+	if completeURL := strings.TrimSpace(resp.VerificationURIComplete); completeURL != "" {
+		fmt.Printf("1. Open this URL on any browser (same network works too):\n\n")
+		fmt.Printf("   %s\n\n", completeURL)
+	} else {
+		fmt.Printf("1. Visit %s in your browser\n", resp.VerificationURI)
+		fmt.Printf("2. Enter this code when prompted: %s\n\n", resp.UserCode)
+	}
+	fmt.Printf("Waiting for authorization to complete... (Ctrl+C to cancel)\n")
+	fmt.Printf(strings.Repeat("-", 80) + "\n")
+
+	tok, err := config.DeviceAccessToken(ctx, resp, oauth2.AccessTypeOffline)
+	if err != nil {
+		return nil, fmt.Errorf("device authorization did not complete: %w", err)
+	}
+
+	fmt.Printf("\n✅ Authorization successful! Token saved.\n")
+	fmt.Printf(strings.Repeat("=", 80) + "\n\n")
+
+	return tok, nil
+}
+
+func getTokenWithOOB(config *oauth2.Config) (*oauth2.Token, error) {
+	// Generate auth URL for out-of-band flow (legacy fallback)
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline, oauth2.ApprovalForce)
 
 	fmt.Printf("\n" + strings.Repeat("=", 80) + "\n")
