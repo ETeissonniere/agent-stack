@@ -3,6 +3,7 @@ package youtube
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -148,10 +149,20 @@ func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
 	if tok, err := getTokenWithDeviceFlow(config); err == nil {
 		return tok, nil
 	} else {
-		log.Printf("Device authorization flow failed: %v. Falling back to copy/paste authorization flow.", err)
-	}
+		var retrieveErr *oauth2.RetrieveError
+		if errors.As(err, &retrieveErr) {
+			log.Printf("Device authorization response failed (%s): %s", retrieveErr.Response.Status, strings.TrimSpace(string(retrieveErr.Body)))
+		} else {
+			log.Printf("Device authorization flow failed: %v", err)
+		}
 
-	return getTokenWithOOB(config)
+		if os.Getenv("YOUTUBE_ENABLE_OOB_FALLBACK") != "" {
+			log.Printf("Legacy OOB fallback enabled via YOUTUBE_ENABLE_OOB_FALLBACK. Note: Google no longer recommends this flow.")
+			return getTokenWithOOB(config)
+		}
+
+		return nil, fmt.Errorf("device authorization failed: %w. Ensure your OAuth client is created as 'TVs and Limited Input devices' and that the YouTube Data API v3 is enabled.", err)
+	}
 }
 
 func getTokenWithDeviceFlow(config *oauth2.Config) (*oauth2.Token, error) {
@@ -165,12 +176,12 @@ func getTokenWithDeviceFlow(config *oauth2.Config) (*oauth2.Token, error) {
 	fmt.Printf("\n" + strings.Repeat("=", 80) + "\n")
 	fmt.Printf("YOUTUBE DEVICE AUTHORIZATION REQUIRED\n")
 	fmt.Printf(strings.Repeat("=", 80) + "\n")
+	fmt.Printf("1. Visit %s in your browser (any device works).\n", resp.VerificationURI)
+	fmt.Printf("2. Enter this code when prompted: %s\n\n", resp.UserCode)
 	if completeURL := strings.TrimSpace(resp.VerificationURIComplete); completeURL != "" {
-		fmt.Printf("1. Open this URL on any browser (same network works too):\n\n")
+		fmt.Printf("   If Google accepts direct links for your account, you can instead open:\n\n")
 		fmt.Printf("   %s\n\n", completeURL)
-	} else {
-		fmt.Printf("1. Visit %s in your browser\n", resp.VerificationURI)
-		fmt.Printf("2. Enter this code when prompted: %s\n\n", resp.UserCode)
+		fmt.Printf("   If you see an 'invalid_request' error, fall back to the code entry flow above.\n\n")
 	}
 	fmt.Printf("Waiting for authorization to complete... (Ctrl+C to cancel)\n")
 	fmt.Printf(strings.Repeat("-", 80) + "\n")

@@ -89,8 +89,8 @@ The application uses a 6-field CRON format (with seconds) powered by `robfig/cro
 ### YouTube OAuth
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create project → Enable YouTube Data API v3
-3. Create OAuth 2.0 Desktop Application credentials
-4. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` environment variables
+3. Create OAuth 2.0 credentials of type `TVs and Limited Input devices`
+4. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` environment variables (some device clients do not issue a secret; leave it blank if not provided)
 
 ### Gemini AI
 1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey) 
