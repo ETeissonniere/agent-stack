@@ -132,9 +132,6 @@ func (c *Config) validate() error {
 	if c.YouTube.ClientID == "" {
 		return fmt.Errorf("YouTube client ID is required (set GOOGLE_CLIENT_ID or youtube.client_id)")
 	}
-	if c.YouTube.ClientSecret == "" {
-		return fmt.Errorf("YouTube client secret is required (set GOOGLE_CLIENT_SECRET or youtube.client_secret)")
-	}
 	if c.AI.GeminiAPIKey == "" {
 		return fmt.Errorf("Gemini API key is required (set GEMINI_API_KEY or ai.gemini_api_key)")
 	}

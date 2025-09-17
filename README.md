@@ -36,8 +36,9 @@ Analyzes your YouTube subscriptions using AI to find the most relevant videos wo
 1. **YouTube OAuth 2.0 Credentials**
    - Go to [Google Cloud Console](https://console.cloud.google.com/)
    - Enable YouTube Data API v3
-   - Create OAuth 2.0 credentials (Desktop Application)
+   - Create OAuth 2.0 credentials (`TVs and Limited Input devices`)
    - Configure OAuth consent screen with YouTube readonly scope
+   - Using the older Desktop credential type will cause Google to return `invalid_request` during device authorization
 
 2. **Google AI Studio API Key**
    - Visit [Google AI Studio](https://makersuite.google.com/app/apikey)

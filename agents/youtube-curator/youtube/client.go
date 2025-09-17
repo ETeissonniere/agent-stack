@@ -3,6 +3,7 @@ package youtube
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -32,11 +33,10 @@ type Client struct {
 func NewClient(cfg *config.YouTubeConfig) (*Client, error) {
 	ctx := context.Background()
 
-	// Create OAuth2 config with no redirect URL (OOB flow)
+	// Create OAuth2 config for the device authorization flow.
 	oauthConfig := &oauth2.Config{
 		ClientID:     cfg.ClientID,
 		ClientSecret: cfg.ClientSecret,
-		RedirectURL:  "urn:ietf:wg:oauth:2.0:oob", // Out-of-band flow
 		Scopes:       []string{"https://www.googleapis.com/auth/youtube.readonly"},
 		Endpoint:     google.Endpoint,
 	}
@@ -144,28 +144,44 @@ func getToken(config *oauth2.Config, tokenFile string) (*oauth2.Token, error) {
 }
 
 func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
-	// Generate auth URL for out-of-band flow
-	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline, oauth2.ApprovalForce)
+	if tok, err := getTokenWithDeviceFlow(config); err == nil {
+		return tok, nil
+	} else {
+		var retrieveErr *oauth2.RetrieveError
+		if errors.As(err, &retrieveErr) {
+			log.Printf("Device authorization response failed (%s): %s", retrieveErr.Response.Status, strings.TrimSpace(string(retrieveErr.Body)))
+		} else {
+			log.Printf("Device authorization flow failed: %v", err)
+		}
 
-	fmt.Printf("\n" + strings.Repeat("=", 80) + "\n")
-	fmt.Printf("YOUTUBE OAUTH SETUP REQUIRED\n")
-	fmt.Printf(strings.Repeat("=", 80) + "\n")
-	fmt.Printf("1. Visit this URL in your browser:\n\n")
-	fmt.Printf("   %v\n\n", authURL)
-	fmt.Printf("2. Complete the authorization process\n")
-	fmt.Printf("3. Copy the authorization code from the browser\n")
-	fmt.Printf("4. Paste it below and press Enter\n")
-	fmt.Printf(strings.Repeat("-", 80) + "\n")
-	fmt.Printf("Authorization code: ")
+		return nil, fmt.Errorf("device authorization failed: %w. Ensure your OAuth client is created as 'TVs and Limited Input devices' and that the YouTube Data API v3 is enabled.", err)
+	}
+}
 
-	var authCode string
-	if _, err := fmt.Scanln(&authCode); err != nil {
-		return nil, fmt.Errorf("unable to read authorization code: %w", err)
+func getTokenWithDeviceFlow(config *oauth2.Config) (*oauth2.Token, error) {
+	ctx := context.Background()
+
+	resp, err := config.DeviceAuth(ctx, oauth2.AccessTypeOffline)
+	if err != nil {
+		return nil, fmt.Errorf("unable to start device authorization: %w", err)
 	}
 
-	tok, err := config.Exchange(context.TODO(), authCode)
+	fmt.Printf("\n" + strings.Repeat("=", 80) + "\n")
+	fmt.Printf("YOUTUBE DEVICE AUTHORIZATION REQUIRED\n")
+	fmt.Printf(strings.Repeat("=", 80) + "\n")
+	fmt.Printf("1. Visit %s in your browser (any device works).\n", resp.VerificationURI)
+	fmt.Printf("2. Enter this code when prompted: %s\n\n", resp.UserCode)
+	if completeURL := strings.TrimSpace(resp.VerificationURIComplete); completeURL != "" {
+		fmt.Printf("   If Google accepts direct links for your account, you can instead open:\n\n")
+		fmt.Printf("   %s\n\n", completeURL)
+		fmt.Printf("   If you see an 'invalid_request' error, fall back to the code entry flow above.\n\n")
+	}
+	fmt.Printf("Waiting for authorization to complete... (Ctrl+C to cancel)\n")
+	fmt.Printf(strings.Repeat("-", 80) + "\n")
+
+	tok, err := config.DeviceAccessToken(ctx, resp, oauth2.AccessTypeOffline)
 	if err != nil {
-		return nil, fmt.Errorf("unable to retrieve token from web: %w", err)
+		return nil, fmt.Errorf("device authorization did not complete: %w", err)
 	}
 
 	fmt.Printf("\n✅ Authorization successful! Token saved.\n")
