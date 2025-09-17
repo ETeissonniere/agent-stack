@@ -107,7 +107,7 @@ func TestTokenRefresherLifecycle(t *testing.T) {
 
 		// Try to start again - should not create a new ticker
 		agent.startTokenRefresher(200 * time.Millisecond)
-		
+
 		if agent.tokenRefreshTicker != firstTicker {
 			t.Error("Starting refresher twice created a new ticker")
 		}
@@ -135,7 +135,7 @@ func TestTokenRefresherLifecycle(t *testing.T) {
 	t.Run("StopWithoutStart", func(t *testing.T) {
 		// Create fresh agent
 		freshAgent := NewYouTubeAgent(cfg)
-		
+
 		// Stop without starting - should not panic
 		freshAgent.StopTokenRefresher()
 
@@ -149,7 +149,7 @@ func TestTokenRefresherLifecycle(t *testing.T) {
 func TestAgentInitialization(t *testing.T) {
 	// Test that Initialize properly sets up all components
 	// Note: This is a basic test since we can't fully initialize without real credentials
-	
+
 	cfg := &config.Config{
 		YouTube: config.YouTubeConfig{
 			ClientID:            "test-client",
@@ -180,14 +180,14 @@ func TestAgentInitialization(t *testing.T) {
 
 	// Note: We can't fully test Initialize() without mocking external services
 	// but we can verify the structure is correct
-	
+
 	// Test that agent implements the scheduler.Agent interface
 	var _ scheduler.Agent = agent
 }
 
 func TestBackgroundRefresherTiming(t *testing.T) {
 	t.Run("RefresherRunsAtInterval", func(t *testing.T) {
-		
+
 		// Track refresher executions
 		executionCount := 0
 		stopChan := make(chan bool)
@@ -257,7 +257,7 @@ func TestConcurrentTokenRefresh(t *testing.T) {
 
 func TestAgentRunOnceStructure(t *testing.T) {
 	// Test the structure of RunOnce with mock events
-	
+
 	// Create mock events
 	var successCalled bool
 	var partialFailureCalled bool
@@ -283,9 +283,9 @@ func TestAgentRunOnceStructure(t *testing.T) {
 	// but we can verify the events structure is correct
 	_ = events
 	_ = successCalled
-	_ = partialFailureCalled  
+	_ = partialFailureCalled
 	_ = criticalFailureCalled
-	
+
 	// Verify the events structure compiles correctly
 	_ = context.Background()
 }

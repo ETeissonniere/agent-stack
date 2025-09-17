@@ -177,7 +177,7 @@ func TestSaveToken(t *testing.T) {
 
 	t.Run("SaveToNewFile", func(t *testing.T) {
 		tokenFile := filepath.Join(tempDir, "new_token.json")
-		
+
 		testToken := &oauth2.Token{
 			AccessToken:  "test-access",
 			RefreshToken: "test-refresh",
@@ -207,7 +207,7 @@ func TestSaveToken(t *testing.T) {
 
 	t.Run("SaveWithNestedDirectory", func(t *testing.T) {
 		tokenFile := filepath.Join(tempDir, "nested", "dir", "token.json")
-		
+
 		testToken := &oauth2.Token{
 			AccessToken:  "nested-access",
 			RefreshToken: "nested-refresh",
@@ -227,7 +227,7 @@ func TestSaveToken(t *testing.T) {
 
 	t.Run("OverwriteExistingFile", func(t *testing.T) {
 		tokenFile := filepath.Join(tempDir, "overwrite_token.json")
-		
+
 		// Save first token
 		firstToken := &oauth2.Token{
 			AccessToken: "first-token",
@@ -284,7 +284,7 @@ func TestParseDurationSeconds(t *testing.T) {
 func TestRefreshToken(t *testing.T) {
 	// This test requires a mock setup since we can't actually refresh tokens in tests
 	// We'll test the RefreshToken method exists and handles errors properly
-	
+
 	tempDir := t.TempDir()
 	tokenFile := filepath.Join(tempDir, "test_token.json")
 
@@ -303,7 +303,7 @@ func TestRefreshToken(t *testing.T) {
 
 	// Note: We can't fully test NewClient and RefreshToken without mocking the YouTube service
 	// but we've tested all the supporting functions thoroughly
-	
+
 	t.Run("TokenFileCreated", func(t *testing.T) {
 		// Verify the token file was created with correct permissions
 		info, err := os.Stat(tokenFile)

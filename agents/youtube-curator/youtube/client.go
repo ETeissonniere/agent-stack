@@ -1,17 +1,17 @@
 package youtube
 
 import (
-    "context"
-    "encoding/json"
-    "fmt"
-    "log"
-    "os"
-    "path/filepath"
-    "regexp"
-    "strconv"
-    "strings"
-    "sync"
-    "time"
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+	"os"
+	"path/filepath"
+	"regexp"
+	"strconv"
+	"strings"
+	"sync"
+	"time"
 
 	"agent-stack/internal/models"
 	"agent-stack/shared/config"
@@ -23,15 +23,15 @@ import (
 )
 
 type Client struct {
-    service     *youtube.Service
-    config      *config.YouTubeConfig
-    oauthConfig *oauth2.Config
-    token       *oauth2.Token
+	service     *youtube.Service
+	config      *config.YouTubeConfig
+	oauthConfig *oauth2.Config
+	token       *oauth2.Token
 }
 
 func NewClient(cfg *config.YouTubeConfig) (*Client, error) {
 	ctx := context.Background()
-	
+
 	// Create OAuth2 config with no redirect URL (OOB flow)
 	oauthConfig := &oauth2.Config{
 		ClientID:     cfg.ClientID,
@@ -63,12 +63,12 @@ func NewClient(cfg *config.YouTubeConfig) (*Client, error) {
 		return nil, fmt.Errorf("failed to create YouTube service: %w", err)
 	}
 
-    return &Client{
-        service:     service,
-        config:      cfg,
-        oauthConfig: oauthConfig,
-        token:       token,
-    }, nil
+	return &Client{
+		service:     service,
+		config:      cfg,
+		oauthConfig: oauthConfig,
+		token:       token,
+	}, nil
 }
 
 // tokenSaver wraps an oauth2.TokenSource to automatically save refreshed tokens.
@@ -90,7 +90,7 @@ func (ts *tokenSaver) Token() (*oauth2.Token, error) {
 
 	// Create a token source that can refresh the token
 	tokenSource := ts.config.TokenSource(context.Background(), ts.token)
-	
+
 	// Get the token (this will refresh if needed)
 	newToken, err := tokenSource.Token()
 	if err != nil {
@@ -146,7 +146,7 @@ func getToken(config *oauth2.Config, tokenFile string) (*oauth2.Token, error) {
 func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
 	// Generate auth URL for out-of-band flow
 	authURL := config.AuthCodeURL("state-token", oauth2.AccessTypeOffline, oauth2.ApprovalForce)
-	
+
 	fmt.Printf("\n" + strings.Repeat("=", 80) + "\n")
 	fmt.Printf("YOUTUBE OAUTH SETUP REQUIRED\n")
 	fmt.Printf(strings.Repeat("=", 80) + "\n")
@@ -167,10 +167,10 @@ func getTokenFromWeb(config *oauth2.Config) (*oauth2.Token, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to retrieve token from web: %w", err)
 	}
-	
+
 	fmt.Printf("\n✅ Authorization successful! Token saved.\n")
 	fmt.Printf(strings.Repeat("=", 80) + "\n\n")
-	
+
 	return tok, nil
 }
 
@@ -186,19 +186,19 @@ func tokenFromFile(file string) (*oauth2.Token, error) {
 }
 
 func saveToken(path string, token *oauth2.Token) error {
-    // Ensure parent directory exists
-    if dir := filepath.Dir(path); dir != "." && dir != "" {
-        if err := os.MkdirAll(dir, 0700); err != nil {
-            return fmt.Errorf("unable to create token directory: %w", err)
-        }
-    }
+	// Ensure parent directory exists
+	if dir := filepath.Dir(path); dir != "." && dir != "" {
+		if err := os.MkdirAll(dir, 0700); err != nil {
+			return fmt.Errorf("unable to create token directory: %w", err)
+		}
+	}
 
-    f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
-    if err != nil {
-        return fmt.Errorf("unable to cache oauth token: %w", err)
-    }
-    defer f.Close()
-	
+	f, err := os.OpenFile(path, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
+	if err != nil {
+		return fmt.Errorf("unable to cache oauth token: %w", err)
+	}
+	defer f.Close()
+
 	if err := json.NewEncoder(f).Encode(token); err != nil {
 		return fmt.Errorf("failed to encode oauth token: %w", err)
 	}
@@ -210,38 +210,38 @@ func parseDurationSeconds(duration string) int {
 	if duration == "" {
 		return 0
 	}
-	
+
 	// Parse ISO 8601 duration format (e.g., "PT1M30S", "PT45S", "PT2H15M30S")
 	re := regexp.MustCompile(`PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?`)
 	matches := re.FindStringSubmatch(duration)
-	
+
 	if len(matches) == 0 {
 		return 0
 	}
-	
+
 	var totalSeconds int
-	
+
 	// Hours
 	if matches[1] != "" {
 		if hours, err := strconv.Atoi(matches[1]); err == nil {
 			totalSeconds += hours * 3600
 		}
 	}
-	
+
 	// Minutes
 	if matches[2] != "" {
 		if minutes, err := strconv.Atoi(matches[2]); err == nil {
 			totalSeconds += minutes * 60
 		}
 	}
-	
+
 	// Seconds
 	if matches[3] != "" {
 		if seconds, err := strconv.Atoi(matches[3]); err == nil {
 			totalSeconds += seconds
 		}
 	}
-	
+
 	return totalSeconds
 }
 
@@ -250,10 +250,10 @@ func parseDurationSeconds(duration string) int {
 // to ensure the token stays fresh. The refreshed token is automatically saved to disk.
 func (c *Client) RefreshToken() error {
 	log.Println("Checking if token needs refresh...")
-	
+
 	// Create a token source that can refresh the token
 	tokenSource := c.oauthConfig.TokenSource(context.Background(), c.token)
-	
+
 	// Get the token (this will refresh if needed)
 	newToken, err := tokenSource.Token()
 	if err != nil {
@@ -275,8 +275,8 @@ func (c *Client) RefreshToken() error {
 }
 
 func (c *Client) GetSubscriptionVideos(ctx context.Context, maxResults int64) ([]*models.Video, error) {
-    since := time.Now().AddDate(0, 0, -1) // Last 24 hours
-	
+	since := time.Now().AddDate(0, 0, -1) // Last 24 hours
+
 	// Step 1: Get user's subscriptions
 	subscriptionsCall := c.service.Subscriptions.List([]string{"snippet"}).
 		Mine(true).
@@ -333,12 +333,12 @@ func (c *Client) GetSubscriptionVideos(ctx context.Context, maxResults int64) ([
 
 	// Step 3: Get recent videos from upload playlists
 	var allVideoIDs []string
-    if len(channelUploadPlaylists) == 0 {
-        log.Println("No upload playlists resolved for subscriptions")
-        return []*models.Video{}, nil
-    }
+	if len(channelUploadPlaylists) == 0 {
+		log.Println("No upload playlists resolved for subscriptions")
+		return []*models.Video{}, nil
+	}
 
-    videosPerChannel := maxResults / int64(len(channelUploadPlaylists))
+	videosPerChannel := maxResults / int64(len(channelUploadPlaylists))
 	if videosPerChannel < 1 {
 		videosPerChannel = 1
 	}
@@ -385,8 +385,8 @@ func (c *Client) GetSubscriptionVideos(ctx context.Context, maxResults int64) ([
 	log.Printf("Found %d recent videos from subscriptions", len(allVideoIDs))
 
 	// Step 4: Get detailed video information in batches
-    var allVideos []*models.Video
-	
+	var allVideos []*models.Video
+
 	for i := 0; i < len(allVideoIDs); i += batchSize {
 		end := i + batchSize
 		if end > len(allVideoIDs) {
@@ -403,13 +403,13 @@ func (c *Client) GetSubscriptionVideos(ctx context.Context, maxResults int64) ([
 			continue
 		}
 
-        for _, item := range videosResponse.Items {
-            durationSeconds := parseDurationSeconds(item.ContentDetails.Duration)
-            video := &models.Video{
-                ID:              item.Id,
-                Title:           item.Snippet.Title,
-                Description:     item.Snippet.Description,
-                ChannelID:       item.Snippet.ChannelId,
+		for _, item := range videosResponse.Items {
+			durationSeconds := parseDurationSeconds(item.ContentDetails.Duration)
+			video := &models.Video{
+				ID:              item.Id,
+				Title:           item.Snippet.Title,
+				Description:     item.Snippet.Description,
+				ChannelID:       item.Snippet.ChannelId,
 				ChannelTitle:    item.Snippet.ChannelTitle,
 				Duration:        item.ContentDetails.Duration,
 				DurationSeconds: durationSeconds,
@@ -434,7 +434,7 @@ func (c *Client) GetSubscriptionVideos(ctx context.Context, maxResults int64) ([
 		}
 	}
 
-    log.Printf("Retrieved %d videos from %d subscriptions", len(allVideos), len(subscriptionsResponse.Items))
+	log.Printf("Retrieved %d videos from %d subscriptions", len(allVideos), len(subscriptionsResponse.Items))
 
 	return allVideos, nil
 }

@@ -6,46 +6,46 @@ import (
 	"log"
 	"time"
 
+	"agent-stack/agents/youtube-curator/youtube"
 	"agent-stack/internal/models"
 	"agent-stack/shared/ai"
 	"agent-stack/shared/config"
 	"agent-stack/shared/email"
 	"agent-stack/shared/scheduler"
 	"agent-stack/shared/storage"
-	"agent-stack/agents/youtube-curator/youtube"
-    "errors"
+	"errors"
 )
 
 // YouTubeMetrics represents the metrics collected during a YouTube curation run
 type YouTubeMetrics struct {
-	VideosFound     int `json:"videos_found"`
-	Analyzed        int `json:"analyzed"`
-	Relevant        int `json:"relevant"`
-	Skipped         int `json:"skipped"`
-	AnalysisErrors  int `json:"analysis_errors"`
+	VideosFound    int `json:"videos_found"`
+	Analyzed       int `json:"analyzed"`
+	Relevant       int `json:"relevant"`
+	Skipped        int `json:"skipped"`
+	AnalysisErrors int `json:"analysis_errors"`
 }
 
 // GetSummary implements the scheduler.Metrics interface
 func (m YouTubeMetrics) GetSummary() string {
-	return fmt.Sprintf("found %d videos, analyzed %d, selected %d relevant", 
+	return fmt.Sprintf("found %d videos, analyzed %d, selected %d relevant",
 		m.VideosFound, m.Analyzed, m.Relevant)
 }
 
 // YouTubeAgent implements the scheduler.Agent interface
 type YouTubeAgent struct {
-    config              *config.Config
-    youtubeClient       *youtube.Client
-    analyzer            *ai.Analyzer
-    emailSender         *email.Sender
-    videoTracker        *storage.VideoTracker
-    tokenRefreshTicker  *time.Ticker
-    tokenRefreshStop    chan bool
+	config             *config.Config
+	youtubeClient      *youtube.Client
+	analyzer           *ai.Analyzer
+	emailSender        *email.Sender
+	videoTracker       *storage.VideoTracker
+	tokenRefreshTicker *time.Ticker
+	tokenRefreshStop   chan bool
 }
 
 func NewYouTubeAgent(cfg *config.Config) *YouTubeAgent {
-    return &YouTubeAgent{
-        config: cfg,
-    }
+	return &YouTubeAgent{
+		config: cfg,
+	}
 }
 
 func (y *YouTubeAgent) Name() string {
@@ -53,16 +53,16 @@ func (y *YouTubeAgent) Name() string {
 }
 
 func (y *YouTubeAgent) Initialize() error {
-    log.Printf("Initializing %s...", y.Name())
-	
-    if y.youtubeClient == nil {
-        client, err := youtube.NewClient(&y.config.YouTube)
+	log.Printf("Initializing %s...", y.Name())
+
+	if y.youtubeClient == nil {
+		client, err := youtube.NewClient(&y.config.YouTube)
 		if err != nil {
 			return fmt.Errorf("failed to create YouTube client: %w", err)
 		}
 		y.youtubeClient = client
 		log.Println("YouTube client initialized")
-		
+
 		// Start background token refresher with configured interval
 		refreshInterval := time.Duration(y.config.YouTube.TokenRefreshMinutes) * time.Minute
 		y.startTokenRefresher(refreshInterval)
@@ -82,17 +82,17 @@ func (y *YouTubeAgent) Initialize() error {
 		log.Println("Email sender initialized")
 	}
 
-    if y.videoTracker == nil {
-        // Track videos for 7 days to avoid re-analyzing
-        tracker, err := storage.NewVideoTracker("data", 7*24*time.Hour)
-        if err != nil {
-            return fmt.Errorf("failed to create video tracker: %w", err)
-        }
-        y.videoTracker = tracker
-        log.Printf("Video tracker initialized (%d videos tracked)", tracker.GetAnalyzedCount())
-    }
+	if y.videoTracker == nil {
+		// Track videos for 7 days to avoid re-analyzing
+		tracker, err := storage.NewVideoTracker("data", 7*24*time.Hour)
+		if err != nil {
+			return fmt.Errorf("failed to create video tracker: %w", err)
+		}
+		y.videoTracker = tracker
+		log.Printf("Video tracker initialized (%d videos tracked)", tracker.GetAnalyzedCount())
+	}
 
-    return nil
+	return nil
 }
 
 // startTokenRefresher starts a background goroutine that refreshes the YouTube OAuth token periodically.
@@ -103,11 +103,11 @@ func (y *YouTubeAgent) startTokenRefresher(interval time.Duration) {
 		// Already running
 		return
 	}
-	
+
 	log.Printf("Starting background token refresher (interval: %v)", interval)
 	y.tokenRefreshTicker = time.NewTicker(interval)
 	y.tokenRefreshStop = make(chan bool)
-	
+
 	go func() {
 		for {
 			select {
@@ -147,7 +147,7 @@ func (y *YouTubeAgent) StopTokenRefresher() {
 
 func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvents) error {
 	startTime := time.Now()
-	
+
 	// Proactively refresh token if needed before starting work
 	if y.youtubeClient != nil {
 		if err := y.youtubeClient.RefreshToken(); err != nil {
@@ -155,7 +155,7 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 			// Continue anyway - the tokenSaver will auto-refresh on API calls
 		}
 	}
-	
+
 	// Fetch videos from subscriptions
 	log.Println("Fetching videos from YouTube subscriptions...")
 	videos, err := y.youtubeClient.GetSubscriptionVideos(ctx, 50)
@@ -168,10 +168,10 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 		duration := time.Since(startTime)
 		if events != nil && events.OnSuccess != nil {
 			metrics := YouTubeMetrics{
-				VideosFound: 0,
-				Analyzed: 0,
-				Relevant: 0,
-				Skipped: 0,
+				VideosFound:    0,
+				Analyzed:       0,
+				Relevant:       0,
+				Skipped:        0,
 				AnalysisErrors: 0,
 			}
 			events.OnSuccess(metrics, duration)
@@ -182,7 +182,7 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 	// Filter out already analyzed videos
 	var newVideos []*models.Video
 	var skippedCount int
-	
+
 	for _, video := range videos {
 		if y.videoTracker.IsAnalyzed(video.ID) {
 			skippedCount++
@@ -195,10 +195,10 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 		duration := time.Since(startTime)
 		if events != nil && events.OnSuccess != nil {
 			metrics := YouTubeMetrics{
-				VideosFound: len(videos),
-				Analyzed: 0,
-				Relevant: 0,
-				Skipped: skippedCount,
+				VideosFound:    len(videos),
+				Analyzed:       0,
+				Relevant:       0,
+				Skipped:        skippedCount,
 				AnalysisErrors: 0,
 			}
 			events.OnSuccess(metrics, duration)
@@ -210,23 +210,23 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 	var analysisErrors int
 	var skippedShorts int
 	var analyzedVideoIDs []string
-	
+
 	for i, video := range newVideos {
 		log.Printf("Analyzing video %d/%d: %s", i+1, len(newVideos), video.Title)
-		
+
 		analysis, err := y.analyzer.AnalyzeVideo(ctx, video)
 		if err != nil {
-            if errors.Is(err, ai.ErrShortVideoSkipped) {
-                skippedShorts++
-                continue
-            }
+			if errors.Is(err, ai.ErrShortVideoSkipped) {
+				skippedShorts++
+				continue
+			}
 			analysisErrors++
-			
+
 			// Report individual analysis failure as partial (recoverable)
 			if events != nil && events.OnPartialFailure != nil {
 				events.OnPartialFailure(fmt.Errorf("failed to analyze video %s: %w", video.Title, err), time.Since(startTime))
 			}
-			
+
 			if analysisErrors > len(newVideos)/2 {
 				return fmt.Errorf("too many analysis failures (%d/%d), stopping", analysisErrors, i+1)
 			}
@@ -235,7 +235,7 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 
 		analyses = append(analyses, analysis)
 		analyzedVideoIDs = append(analyzedVideoIDs, video.ID)
-		
+
 		time.Sleep(2 * time.Second)
 	}
 
@@ -249,7 +249,7 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 		}
 	}
 
-	if analysisErrors > 0 {		
+	if analysisErrors > 0 {
 		// Check if ALL videos failed to analyze (critical failure)
 		if len(analyses) == 0 && len(newVideos) > 0 {
 			// We had videos to analyze but ALL of them failed
@@ -296,16 +296,16 @@ func (y *YouTubeAgent) RunOnce(ctx context.Context, events *scheduler.AgentEvent
 	duration := time.Since(startTime)
 	if events != nil && events.OnSuccess != nil {
 		metrics := YouTubeMetrics{
-			VideosFound: len(videos),
-			Analyzed: len(analyses),
-			Relevant: len(relevantVideos),
-			Skipped: skippedCount,
+			VideosFound:    len(videos),
+			Analyzed:       len(analyses),
+			Relevant:       len(relevantVideos),
+			Skipped:        skippedCount,
 			AnalysisErrors: analysisErrors,
 		}
 		events.OnSuccess(metrics, duration)
 	}
-	
-	log.Printf("Session complete: %d total videos, %d skipped (already analyzed), %d short videos skipped, %d analyzed, %d relevant", 
+
+	log.Printf("Session complete: %d total videos, %d skipped (already analyzed), %d short videos skipped, %d analyzed, %d relevant",
 		len(videos), skippedCount, skippedShorts, len(analyses), len(relevantVideos))
 
 	return nil

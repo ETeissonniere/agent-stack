@@ -8,9 +8,9 @@ import (
 	"os/signal"
 	"syscall"
 
+	"agent-stack/agents/youtube-curator"
 	"agent-stack/shared/config"
 	"agent-stack/shared/scheduler"
-	"agent-stack/agents/youtube-curator"
 )
 
 func main() {
@@ -22,7 +22,7 @@ func main() {
 	// Create context that responds to signals
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	
+
 	// Create YouTube agent and scheduler
 	agent := youtubecurator.NewYouTubeAgent(cfg)
 	s := scheduler.New(cfg, agent)
@@ -32,24 +32,24 @@ func main() {
 		if err := agent.Initialize(); err != nil {
 			log.Fatalf("Failed to initialize agent: %v", err)
 		}
-		
+
 		if err := s.RunOnce(ctx); err != nil {
 			log.Fatalf("Failed to run: %v", err)
 		}
-		
+
 		// Stop token refresher when running once
 		agent.StopTokenRefresher()
 		return
 	}
 
 	fmt.Println("Starting scheduler...")
-	
+
 	// Ensure cleanup on exit
 	defer func() {
 		log.Println("Shutting down...")
 		agent.StopTokenRefresher()
 	}()
-	
+
 	if err := s.Start(ctx); err != nil {
 		log.Fatalf("Scheduler failed: %v", err)
 	}
