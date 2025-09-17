@@ -11,16 +11,16 @@ import (
 
 // VideoTracker manages a persistent store of analyzed video IDs to prevent duplicate analysis
 type VideoTracker struct {
-	filePath     string
-	analyzedIDs  map[string]time.Time
-	mu           sync.RWMutex
-	maxAge       time.Duration
+	filePath    string
+	analyzedIDs map[string]time.Time
+	mu          sync.RWMutex
+	maxAge      time.Duration
 }
 
 // TrackedVideo represents a video that has been analyzed
 type TrackedVideo struct {
-	VideoID     string    `json:"video_id"`
-	AnalyzedAt  time.Time `json:"analyzed_at"`
+	VideoID    string    `json:"video_id"`
+	AnalyzedAt time.Time `json:"analyzed_at"`
 }
 
 // NewVideoTracker creates a new video tracker with persistent storage
@@ -30,7 +30,7 @@ func NewVideoTracker(dataDir string, maxAge time.Duration) (*VideoTracker, error
 	}
 
 	filePath := filepath.Join(dataDir, "analyzed_videos.json")
-	
+
 	tracker := &VideoTracker{
 		filePath:    filePath,
 		analyzedIDs: make(map[string]time.Time),
@@ -93,7 +93,7 @@ func (vt *VideoTracker) GetAnalyzedCount() int {
 // Cleanup removes entries older than maxAge
 func (vt *VideoTracker) cleanup() {
 	cutoff := time.Now().Add(-vt.maxAge)
-	
+
 	for videoID, analyzedAt := range vt.analyzedIDs {
 		if analyzedAt.Before(cutoff) {
 			delete(vt.analyzedIDs, videoID)

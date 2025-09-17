@@ -1,22 +1,22 @@
 package config
 
 import (
-    "fmt"
-    "os"
-    "strconv"
+	"fmt"
+	"os"
+	"strconv"
 
-    "github.com/joho/godotenv"
-    "gopkg.in/yaml.v3"
+	"github.com/joho/godotenv"
+	"gopkg.in/yaml.v3"
 )
 
 type Config struct {
-    YouTube    YouTubeConfig    `yaml:"youtube"`
-    AI         AIConfig         `yaml:"ai"`
-    Email      EmailConfig      `yaml:"email"`
-    Guidelines GuidelinesConfig `yaml:"guidelines"`
-    Schedule   string           `yaml:"schedule"`
-    Monitoring MonitoringConfig `yaml:"monitoring"`
-    Video      VideoConfig      `yaml:"video"`
+	YouTube    YouTubeConfig    `yaml:"youtube"`
+	AI         AIConfig         `yaml:"ai"`
+	Email      EmailConfig      `yaml:"email"`
+	Guidelines GuidelinesConfig `yaml:"guidelines"`
+	Schedule   string           `yaml:"schedule"`
+	Monitoring MonitoringConfig `yaml:"monitoring"`
+	Video      VideoConfig      `yaml:"video"`
 }
 
 type YouTubeConfig struct {
@@ -27,8 +27,8 @@ type YouTubeConfig struct {
 }
 
 type AIConfig struct {
-    GeminiAPIKey string `yaml:"gemini_api_key" env:"GEMINI_API_KEY"`
-    Model        string `yaml:"model"`
+	GeminiAPIKey string `yaml:"gemini_api_key" env:"GEMINI_API_KEY"`
+	Model        string `yaml:"model"`
 }
 
 type EmailConfig struct {
@@ -41,20 +41,20 @@ type EmailConfig struct {
 }
 
 type GuidelinesConfig struct {
-    Criteria []string `yaml:"criteria"`
+	Criteria []string `yaml:"criteria"`
 }
 
 type MonitoringConfig struct {
-    HealthPort int `yaml:"health_port"`
+	HealthPort int `yaml:"health_port"`
 }
 
 type VideoConfig struct {
-    ShortMinutes int `yaml:"short_minutes"`
-    LongMinutes  int `yaml:"long_minutes"`
+	ShortMinutes int `yaml:"short_minutes"`
+	LongMinutes  int `yaml:"long_minutes"`
 }
 
 func Load() (*Config, error) {
-    _ = godotenv.Load()
+	_ = godotenv.Load()
 
 	configFile := os.Getenv("CONFIG_FILE")
 	if configFile == "" {
@@ -77,15 +77,15 @@ func Load() (*Config, error) {
 	if cfg.YouTube.ClientSecret == "" {
 		cfg.YouTube.ClientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
 	}
-    if cfg.YouTube.TokenFile == "" {
-        cfg.YouTube.TokenFile = "data/youtube_token.json"
-    }
-    if cfg.YouTube.TokenRefreshMinutes == 0 {
-        cfg.YouTube.TokenRefreshMinutes = 30 // Default to 30 minutes
-    }
-    if cfg.AI.GeminiAPIKey == "" {
-        cfg.AI.GeminiAPIKey = os.Getenv("GEMINI_API_KEY")
-    }
+	if cfg.YouTube.TokenFile == "" {
+		cfg.YouTube.TokenFile = "data/youtube_token.json"
+	}
+	if cfg.YouTube.TokenRefreshMinutes == 0 {
+		cfg.YouTube.TokenRefreshMinutes = 30 // Default to 30 minutes
+	}
+	if cfg.AI.GeminiAPIKey == "" {
+		cfg.AI.GeminiAPIKey = os.Getenv("GEMINI_API_KEY")
+	}
 	if cfg.Email.Username == "" {
 		cfg.Email.Username = os.Getenv("EMAIL_USERNAME")
 	}
@@ -95,37 +95,37 @@ func Load() (*Config, error) {
 
 	// No external monitoring services - self-contained only
 
-    if cfg.AI.Model == "" {
-        cfg.AI.Model = "gemini-2.5-flash"
-    }
-    if cfg.Video.LongMinutes == 0 {
-        cfg.Video.LongMinutes = 60
-    }
-    if cfg.Video.ShortMinutes == 0 {
-        cfg.Video.ShortMinutes = 1
-    }
-    if cfg.Schedule == "" {
-        // 6-field cron with seconds: daily at 09:00:00
-        cfg.Schedule = "0 0 9 * * *"
-    }
+	if cfg.AI.Model == "" {
+		cfg.AI.Model = "gemini-2.5-flash"
+	}
+	if cfg.Video.LongMinutes == 0 {
+		cfg.Video.LongMinutes = 60
+	}
+	if cfg.Video.ShortMinutes == 0 {
+		cfg.Video.ShortMinutes = 1
+	}
+	if cfg.Schedule == "" {
+		// 6-field cron with seconds: daily at 09:00:00
+		cfg.Schedule = "0 0 9 * * *"
+	}
 
-    if cfg.Monitoring.HealthPort == 0 {
-        cfg.Monitoring.HealthPort = 8080
-    }
+	if cfg.Monitoring.HealthPort == 0 {
+		cfg.Monitoring.HealthPort = 8080
+	}
 
-    // Optional override via environment variable to align Docker healthchecks.
-    // Use a single variable name to avoid confusion.
-    if v := os.Getenv("HEALTHCHECK_PORT"); v != "" {
-        if p, err := strconv.Atoi(v); err == nil && p > 0 {
-            cfg.Monitoring.HealthPort = p
-        }
-    }
+	// Optional override via environment variable to align Docker healthchecks.
+	// Use a single variable name to avoid confusion.
+	if v := os.Getenv("HEALTHCHECK_PORT"); v != "" {
+		if p, err := strconv.Atoi(v); err == nil && p > 0 {
+			cfg.Monitoring.HealthPort = p
+		}
+	}
 
-    if err := cfg.validate(); err != nil {
-        return nil, fmt.Errorf("config validation failed: %w", err)
-    }
+	if err := cfg.validate(); err != nil {
+		return nil, fmt.Errorf("config validation failed: %w", err)
+	}
 
-    return &cfg, nil
+	return &cfg, nil
 }
 
 func (c *Config) validate() error {

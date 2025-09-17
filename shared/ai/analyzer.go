@@ -1,12 +1,12 @@
 package ai
 
 import (
-    "context"
-    "encoding/json"
-    "fmt"
-    "log"
-    "strings"
-    "errors"
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"log"
+	"strings"
 
 	"agent-stack/internal/models"
 	"agent-stack/shared/config"
@@ -15,16 +15,16 @@ import (
 )
 
 type Analyzer struct {
-    client     *genai.Client
-    model      string
-    guidelines []string
-    longVideoMinutes int
-    shortVideoMinutes int
+	client            *genai.Client
+	model             string
+	guidelines        []string
+	longVideoMinutes  int
+	shortVideoMinutes int
 }
 
 func NewAnalyzer(cfg *config.Config) (*Analyzer, error) {
-    ctx := context.Background()
-	
+	ctx := context.Background()
+
 	// Configure client with API key
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
 		APIKey: cfg.AI.GeminiAPIKey,
@@ -33,15 +33,15 @@ func NewAnalyzer(cfg *config.Config) (*Analyzer, error) {
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
 	}
 
-    a := &Analyzer{
-        client:     client,
-        model:      cfg.AI.Model,
-        guidelines: cfg.Guidelines.Criteria,
-        longVideoMinutes: cfg.Video.LongMinutes,
-        shortVideoMinutes: cfg.Video.ShortMinutes,
-    }
+	a := &Analyzer{
+		client:            client,
+		model:             cfg.AI.Model,
+		guidelines:        cfg.Guidelines.Criteria,
+		longVideoMinutes:  cfg.Video.LongMinutes,
+		shortVideoMinutes: cfg.Video.ShortMinutes,
+	}
 
-    return a, nil
+	return a, nil
 }
 
 func (a *Analyzer) AnalyzeVideo(ctx context.Context, video *models.Video) (*models.Analysis, error) {
@@ -52,15 +52,15 @@ func (a *Analyzer) AnalyzeVideo(ctx context.Context, video *models.Video) (*mode
 		return nil, fmt.Errorf("video URL is required")
 	}
 
-    // Check video duration for skipping or fallback thresholds
-    durationMinutes := video.DurationSeconds / 60
+	// Check video duration for skipping or fallback thresholds
+	durationMinutes := video.DurationSeconds / 60
 
-    // Skip short videos if configured
-    if a.shortVideoMinutes > 0 && durationMinutes > 0 && durationMinutes <= a.shortVideoMinutes {
-        log.Printf("Skipping short video: %s (%d minutes) - %s", video.Title, durationMinutes, video.ChannelTitle)
-        return nil, ErrShortVideoSkipped
-    }
-    useFallback := a.longVideoMinutes > 0 && durationMinutes > a.longVideoMinutes
+	// Skip short videos if configured
+	if a.shortVideoMinutes > 0 && durationMinutes > 0 && durationMinutes <= a.shortVideoMinutes {
+		log.Printf("Skipping short video: %s (%d minutes) - %s", video.Title, durationMinutes, video.ChannelTitle)
+		return nil, ErrShortVideoSkipped
+	}
+	useFallback := a.longVideoMinutes > 0 && durationMinutes > a.longVideoMinutes
 
 	if useFallback {
 		log.Printf("Using metadata-only analysis for long video: %s (%d minutes) - %s", video.Title, durationMinutes, video.ChannelTitle)
@@ -78,15 +78,15 @@ func (a *Analyzer) AnalyzeVideo(ctx context.Context, video *models.Video) (*mode
 		genai.NewContentFromParts(parts, genai.RoleUser),
 	}
 
-    result, err := a.client.Models.GenerateContent(ctx, a.model, contents, nil)
-    if err != nil {
-        // If token limit error, fallback to metadata analysis
-        if strings.Contains(err.Error(), "token count") || strings.Contains(err.Error(), "INVALID_ARGUMENT") {
-            log.Printf("Token limit exceeded for video %s (%d minutes), falling back to metadata-only analysis", video.Title, durationMinutes)
-            return a.analyzeMetadataOnly(ctx, video)
-        }
-        return nil, fmt.Errorf("failed to analyze video %s: %w", video.ID, err)
-    }
+	result, err := a.client.Models.GenerateContent(ctx, a.model, contents, nil)
+	if err != nil {
+		// If token limit error, fallback to metadata analysis
+		if strings.Contains(err.Error(), "token count") || strings.Contains(err.Error(), "INVALID_ARGUMENT") {
+			log.Printf("Token limit exceeded for video %s (%d minutes), falling back to metadata-only analysis", video.Title, durationMinutes)
+			return a.analyzeMetadataOnly(ctx, video)
+		}
+		return nil, fmt.Errorf("failed to analyze video %s: %w", video.ID, err)
+	}
 
 	responseText := result.Text()
 	if responseText == "" {
@@ -107,10 +107,10 @@ var ErrShortVideoSkipped = errors.New("short video skipped")
 
 func (a *Analyzer) buildAnalysisPrompt(video *models.Video, metadataOnly bool) string {
 	guidelines := strings.Join(a.guidelines, "\n- ")
-	
+
 	var analysisType, instructions, summaryDesc, reasoningDesc string
 	var descriptionLength int
-	
+
 	if metadataOnly {
 		analysisType = "analyzes YouTube video metadata"
 		instructions = `INSTRUCTIONS:
@@ -243,10 +243,10 @@ func (a *Analyzer) analyzeMetadataOnly(ctx context.Context, video *models.Video)
 		genai.NewContentFromParts(parts, genai.RoleUser),
 	}
 
-    result, err := a.client.Models.GenerateContent(ctx, a.model, contents, nil)
-    if err != nil {
-        return nil, fmt.Errorf("failed to analyze video metadata %s: %w", video.ID, err)
-    }
+	result, err := a.client.Models.GenerateContent(ctx, a.model, contents, nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to analyze video metadata %s: %w", video.ID, err)
+	}
 
 	responseText := result.Text()
 	if responseText == "" {
@@ -265,16 +265,16 @@ func (a *Analyzer) sanitizeJSON(jsonStr string) string {
 	// Handle common JSON formatting issues from AI responses
 	// 1. Fix unescaped quotes within string values
 	// This is a simple approach - split by lines and fix quotes within string values
-	
+
 	lines := strings.Split(jsonStr, "\n")
 	var sanitizedLines []string
-	
+
 	for _, line := range lines {
 		line = strings.TrimSpace(line)
 		if line == "" {
 			continue
 		}
-		
+
 		// Look for lines that contain string values (have : followed by ")
 		if strings.Contains(line, ":") && strings.Contains(line, "\"") {
 			// Find the position after the colon and first quote
@@ -282,7 +282,7 @@ func (a *Analyzer) sanitizeJSON(jsonStr string) string {
 			if colonIdx != -1 {
 				beforeColon := line[:colonIdx+1]
 				afterColon := strings.TrimSpace(line[colonIdx+1:])
-				
+
 				// If this is a string value (starts and might end with ")
 				if strings.HasPrefix(afterColon, "\"") {
 					// Find the last quote (should be the closing quote)
@@ -292,26 +292,26 @@ func (a *Analyzer) sanitizeJSON(jsonStr string) string {
 						stringContent := afterColon[1:lastQuoteIdx]
 						// Escape any unescaped quotes in the content
 						stringContent = strings.ReplaceAll(stringContent, "\"", "\\\"")
-						
+
 						// Check if there's a comma after the closing quote
 						remainder := afterColon[lastQuoteIdx+1:]
-						
+
 						// Reconstruct the line
 						line = beforeColon + " \"" + stringContent + "\"" + remainder
 					}
 				}
 			}
 		}
-		
+
 		sanitizedLines = append(sanitizedLines, line)
 	}
-	
+
 	return strings.Join(sanitizedLines, "\n")
 }
 
 func truncateString(s string, maxLength int) string {
-    if len(s) <= maxLength {
-        return s
-    }
-    return s[:maxLength] + "..."
+	if len(s) <= maxLength {
+		return s
+	}
+	return s[:maxLength] + "..."
 }

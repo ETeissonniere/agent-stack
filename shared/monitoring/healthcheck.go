@@ -24,7 +24,7 @@ func NewHealthServer(monitor *Monitor, port string) *HealthServer {
 func (h *HealthServer) Start() {
 	http.HandleFunc("/health", h.healthHandler)
 	http.HandleFunc("/status", h.statusHandler)
-	
+
 	log.Printf("Health check server starting on port %s", h.port)
 	go func() {
 		if err := http.ListenAndServe(":"+h.port, nil); err != nil {

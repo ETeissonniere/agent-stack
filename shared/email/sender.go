@@ -24,7 +24,7 @@ func (s *Sender) SendReport(report *models.EmailReport) error {
 	if report == nil {
 		return fmt.Errorf("report cannot be nil")
 	}
-	
+
 	if len(report.Videos) == 0 {
 		return nil // No videos to report
 	}
@@ -40,7 +40,7 @@ func (s *Sender) SendReport(report *models.EmailReport) error {
 	if err := s.sendViaSMTP(subject, body); err != nil {
 		return fmt.Errorf("failed to send email: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -134,9 +134,11 @@ func (s *Sender) generateEmailBody(report *models.EmailReport) (string, error) {
 `
 
 	tmpl := template.New("email").Funcs(template.FuncMap{
-		"div": func(a, b float64) float64 { 
-			if b == 0 { return 0 }
-			return a / b 
+		"div": func(a, b float64) float64 {
+			if b == 0 {
+				return 0
+			}
+			return a / b
 		},
 		"mul":     func(a, b float64) float64 { return a * b },
 		"float64": func(i int) float64 { return float64(i) },
