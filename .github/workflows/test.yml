@@ -20,7 +20,16 @@ jobs:
       run: go mod download
     
     - name: Check formatting
-      run: test -z $(gofmt -s -l .)
+      shell: bash
+      run: |
+        fmt_out=$(gofmt -s -l .)
+        if [ -n "$fmt_out" ]; then
+          echo "The following files are not gofmt'ed:" >&2
+          echo "$fmt_out" >&2
+          echo >&2
+          echo "Please run: gofmt -s -w ." >&2
+          exit 1
+        fi
     
     - name: Run tests
       run: go test -v ./...
