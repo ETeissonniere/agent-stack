@@ -57,6 +57,5 @@ drone_weather:
 
   # APIs (defaults provided)
   weather_url: "https://api.open-meteo.com/v1/forecast"
-  tfr_url: "https://tfr.faa.gov/tfr2/list.html"
 
   schedule: "0 0 9 * * *" # Daily at 9 AM

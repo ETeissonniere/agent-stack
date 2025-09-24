@@ -127,9 +127,8 @@ drone_weather:
   min_temp_c: 4.4          # 4.4°C minimum temperature
   max_temp_c: 35.0         # 35°C maximum temperature
 
-  # API endpoints (defaults provided)
+  # API endpoint (default provided)
   weather_url: "https://api.open-meteo.com/v1/forecast"
-  tfr_url: "https://tfr.faa.gov/tfr2/list.html"
 
   schedule: "0 0 9 * * *" # Daily at 9 AM
 ```
@@ -138,7 +137,7 @@ drone_weather:
 - **Location Settings**: Configure `drone_weather.home_latitude`, `drone_weather.home_longitude`, and `drone_weather.home_name` for your primary flying location
 - **Safety Thresholds**: Adjust weather limits based on your drone capabilities and skill level
 - **TFR Monitoring**: Set `drone_weather.search_radius_miles` to define how far to check for temporary flight restrictions
-- **API Endpoints**: Use default endpoints or customize for different weather/TFR data sources
+- **API Endpoint**: Use default weather endpoint or customize for different weather data source
 - **Schedules**: Each agent now has its own schedule configuration allowing independent timing
 
 ### Video Filtering Configuration

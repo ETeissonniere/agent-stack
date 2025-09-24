@@ -69,7 +69,6 @@ type DroneWeatherConfig struct {
 	MinTempC           float64 `yaml:"min_temp_c"`
 	MaxTempC           float64 `yaml:"max_temp_c"`
 	WeatherURL         string  `yaml:"weather_url"`
-	TFRURL             string  `yaml:"tfr_url"`
 	Schedule           string  `yaml:"schedule"`
 }
 
@@ -148,9 +147,6 @@ func Load() (*Config, error) {
 	// Set defaults for drone weather configuration
 	if cfg.DroneWeather.WeatherURL == "" {
 		cfg.DroneWeather.WeatherURL = "https://api.open-meteo.com/v1/forecast"
-	}
-	if cfg.DroneWeather.TFRURL == "" {
-		cfg.DroneWeather.TFRURL = "https://tfr.faa.gov/tfr2/list.html"
 	}
 	if cfg.DroneWeather.MaxWindSpeedKmh == 0 {
 		cfg.DroneWeather.MaxWindSpeedKmh = 25 // ~15 mph converted to km/h

@@ -205,9 +205,8 @@ drone_weather:
   min_temp_c: 4.4   # 40°F
   max_temp_c: 35.0  # 95°F
 
-  # API endpoints (defaults provided)
+  # API endpoint (default provided)
   weather_url: "https://api.open-meteo.com/v1/forecast"
-  tfr_url: "https://tfr.faa.gov/tfr2/list.html"
 ```
 
 ### Video Settings
