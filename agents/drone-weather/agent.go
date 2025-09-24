@@ -216,10 +216,6 @@ func (d *DroneWeatherAgent) sendViaSMTP(subject, body string) error {
 		return fmt.Errorf("failed to start TLS: %w", err)
 	}
 
-	// Check server capabilities
-	ext, _ := client.Extension("SMTPUTF8")
-	log.Printf("SMTP server SMTPUTF8 support: %v", ext)
-
 	// Authenticate
 	auth := smtp.PlainAuth("", d.config.Email.Username, d.config.Email.Password, d.config.Email.SMTPServer)
 	if err = client.Auth(auth); err != nil {
