@@ -166,9 +166,9 @@ func getTokenWithDeviceFlow(config *oauth2.Config) (*oauth2.Token, error) {
 		return nil, fmt.Errorf("unable to start device authorization: %w", err)
 	}
 
-	fmt.Printf("\n" + strings.Repeat("=", 80) + "\n")
+	fmt.Printf("\n%s\n", strings.Repeat("=", 80))
 	fmt.Printf("YOUTUBE DEVICE AUTHORIZATION REQUIRED\n")
-	fmt.Printf(strings.Repeat("=", 80) + "\n")
+	fmt.Printf("%s\n", strings.Repeat("=", 80))
 	fmt.Printf("1. Visit %s in your browser (any device works).\n", resp.VerificationURI)
 	fmt.Printf("2. Enter this code when prompted: %s\n\n", resp.UserCode)
 	if completeURL := strings.TrimSpace(resp.VerificationURIComplete); completeURL != "" {
@@ -177,7 +177,7 @@ func getTokenWithDeviceFlow(config *oauth2.Config) (*oauth2.Token, error) {
 		fmt.Printf("   If you see an 'invalid_request' error, fall back to the code entry flow above.\n\n")
 	}
 	fmt.Printf("Waiting for authorization to complete... (Ctrl+C to cancel)\n")
-	fmt.Printf(strings.Repeat("-", 80) + "\n")
+	fmt.Printf("%s\n", strings.Repeat("-", 80))
 
 	tok, err := config.DeviceAccessToken(ctx, resp, oauth2.AccessTypeOffline)
 	if err != nil {
@@ -185,7 +185,7 @@ func getTokenWithDeviceFlow(config *oauth2.Config) (*oauth2.Token, error) {
 	}
 
 	fmt.Printf("\n✅ Authorization successful! Token saved.\n")
-	fmt.Printf(strings.Repeat("=", 80) + "\n\n")
+	fmt.Printf("%s\n\n", strings.Repeat("=", 80))
 
 	return tok, nil
 }
