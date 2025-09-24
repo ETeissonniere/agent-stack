@@ -22,6 +22,7 @@ type WeatherClient struct {
 type OpenMeteoResponse struct {
 	Latitude  float64 `json:"latitude"`
 	Longitude float64 `json:"longitude"`
+	Timezone  string  `json:"timezone"`
 	Current   struct {
 		Time          string  `json:"time"`
 		Temperature   float64 `json:"temperature_2m"`
@@ -43,7 +44,7 @@ func NewWeatherClient(cfg *config.DroneWeatherConfig) *WeatherClient {
 
 // GetCurrentWeather fetches current weather data from Open-Meteo API
 func (w *WeatherClient) GetCurrentWeather(ctx context.Context, lat, lon float64) (*models.WeatherData, error) {
-	url := fmt.Sprintf("%s?latitude=%.4f&longitude=%.4f&current=temperature_2m,wind_speed_10m,wind_direction_10m,visibility,precipitation&wind_speed_unit=ms&temperature_unit=celsius",
+	url := fmt.Sprintf("%s?latitude=%.4f&longitude=%.4f&current=temperature_2m,wind_speed_10m,wind_direction_10m,visibility,precipitation&wind_speed_unit=ms&temperature_unit=celsius&timezone=auto",
 		w.config.WeatherURL, lat, lon)
 
 	log.Printf("Fetching weather data from: %s", url)
@@ -68,8 +69,14 @@ func (w *WeatherClient) GetCurrentWeather(ctx context.Context, lat, lon float64)
 		return nil, fmt.Errorf("failed to decode weather response: %w", err)
 	}
 
-	// Parse time
-	parsedTime, err := time.Parse("2006-01-02T15:04", apiResp.Current.Time)
+	// Parse time with timezone
+	location, err := time.LoadLocation(apiResp.Timezone)
+	if err != nil {
+		log.Printf("Warning: Failed to load timezone %s, using UTC: %v", apiResp.Timezone, err)
+		location = time.UTC
+	}
+
+	parsedTime, err := time.ParseInLocation("2006-01-02T15:04", apiResp.Current.Time, location)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse weather time: %w", err)
 	}
@@ -83,6 +90,7 @@ func (w *WeatherClient) GetCurrentWeather(ctx context.Context, lat, lon float64)
 		Visibility:    apiResp.Current.Visibility / 1000, // Convert m to km
 		Precipitation: apiResp.Current.Precipitation,
 		Time:          parsedTime,
+		Timezone:      apiResp.Timezone,
 	}, nil
 }
 
@@ -93,7 +101,7 @@ func (w *WeatherClient) AnalyzeWeatherConditions(data *models.WeatherData) *mode
 		IsFlyable:    true,
 		Reasons:      []string{},
 		WindSpeedMph: data.WindSpeed * 2.237,                // m/s to mph
-		TempF:        (data.Temperature * 9 / 5) + 32,       // C to F
+		TempF:        (data.Temperature * 9 / 5) + 32,       // C to F (for display)
 		VisibilityMi: data.Visibility * 0.621371,            // km to miles
 		BestWindow:   "9 AM - 4 PM",                         // Default flying window
 		WindForecast: "Light and stable through afternoon",  // Simplified forecast
@@ -117,15 +125,15 @@ func (w *WeatherClient) AnalyzeWeatherConditions(data *models.WeatherData) *mode
 		analysis.Reasons = append(analysis.Reasons, fmt.Sprintf("Precipitation present: %.1f mm (max: %.1f mm)", data.Precipitation, w.config.MaxPrecipitationMm))
 	}
 
-	// Check temperature
-	if analysis.TempF < float64(w.config.MinTempF) {
+	// Check temperature (use Celsius for comparisons)
+	if data.Temperature < w.config.MinTempC {
 		analysis.IsFlyable = false
-		analysis.Reasons = append(analysis.Reasons, fmt.Sprintf("Temperature too low: %.1f°F (min: %d°F)", analysis.TempF, w.config.MinTempF))
+		analysis.Reasons = append(analysis.Reasons, fmt.Sprintf("Temperature too low: %.1f°C (min: %.1f°C)", data.Temperature, w.config.MinTempC))
 	}
 
-	if analysis.TempF > float64(w.config.MaxTempF) {
+	if data.Temperature > w.config.MaxTempC {
 		analysis.IsFlyable = false
-		analysis.Reasons = append(analysis.Reasons, fmt.Sprintf("Temperature too high: %.1f°F (max: %d°F)", analysis.TempF, w.config.MaxTempF))
+		analysis.Reasons = append(analysis.Reasons, fmt.Sprintf("Temperature too high: %.1f°C (max: %.1f°C)", data.Temperature, w.config.MaxTempC))
 	}
 
 	// Update wind forecast based on conditions

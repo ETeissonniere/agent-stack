@@ -12,6 +12,7 @@ type WeatherData struct {
 	Visibility  float64   `json:"visibility"`        // km
 	Precipitation float64 `json:"precipitation"`     // mm
 	Time        time.Time `json:"time"`
+	Timezone    string    `json:"timezone"`          // IANA timezone (e.g., "America/Los_Angeles")
 }
 
 // WeatherAnalysis contains the analysis of weather conditions for drone flying

@@ -48,8 +48,8 @@ drone_weather:
   max_wind_speed_mph: 15
   min_visibility_miles: 3
   max_precipitation_mm: 0
-  min_temp_f: 40
-  max_temp_f: 95
+  min_temp_c: 4.4   # 40°F
+  max_temp_c: 35.0  # 95°F
 
   # APIs (defaults provided)
   weather_url: "https://api.open-meteo.com/v1/forecast"

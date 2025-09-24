@@ -99,8 +99,9 @@ func (d *DroneWeatherAgent) RunOnce(ctx context.Context, events *scheduler.Agent
 
 	// Analyze weather conditions
 	weatherAnalysis := d.weatherClient.AnalyzeWeatherConditions(weatherData)
-	log.Printf("Weather analysis: flyable=%t, temp=%.1f°F, wind=%.1f mph, visibility=%.1f mi",
-		weatherAnalysis.IsFlyable, weatherAnalysis.TempF, weatherAnalysis.WindSpeedMph, weatherAnalysis.VisibilityMi)
+	log.Printf("Weather analysis: flyable=%t, temp=%.1f°C (%.1f°F), wind=%.1f mph, visibility=%.1f mi, time=%s",
+		weatherAnalysis.IsFlyable, weatherData.Temperature, weatherAnalysis.TempF, weatherAnalysis.WindSpeedMph,
+		weatherAnalysis.VisibilityMi, weatherData.Time.Format("15:04 MST"))
 
 	// Check TFRs
 	log.Println("Checking TFRs...")
@@ -233,7 +234,7 @@ func (d *DroneWeatherAgent) generateEmailBody(report *models.DroneFlightReport) 
     <div class="header">
         <h1>🚁 Drone Weather Report</h1>
         <h2>{{.LocationName}}</h2>
-        <p>{{.Date.Format "Monday, January 2, 2006 at 3:04 PM"}}</p>
+        <p>{{.Date.Format "Monday, January 2, 2006 at 3:04 PM MST"}}</p>
     </div>
 
     <div class="summary">
@@ -246,7 +247,7 @@ func (d *DroneWeatherAgent) generateEmailBody(report *models.DroneFlightReport) 
         <h3>🌤️ Weather Conditions</h3>
         <div class="metric">
             <div class="metric-label">Temperature</div>
-            <div class="metric-value">{{printf "%.0f°F" .WeatherAnalysis.TempF}}</div>
+            <div class="metric-value">{{printf "%.1f°C (%.0f°F)" .WeatherAnalysis.Data.Temperature .WeatherAnalysis.TempF}}</div>
         </div>
         <div class="metric">
             <div class="metric-label">Wind Speed</div>

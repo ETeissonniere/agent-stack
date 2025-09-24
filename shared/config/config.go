@@ -62,8 +62,8 @@ type DroneWeatherConfig struct {
 	MaxWindSpeedMph    int     `yaml:"max_wind_speed_mph"`
 	MinVisibilityMiles int     `yaml:"min_visibility_miles"`
 	MaxPrecipitationMm float64 `yaml:"max_precipitation_mm"`
-	MinTempF           int     `yaml:"min_temp_f"`
-	MaxTempF           int     `yaml:"max_temp_f"`
+	MinTempC           float64 `yaml:"min_temp_c"`
+	MaxTempC           float64 `yaml:"max_temp_c"`
 	WeatherURL         string  `yaml:"weather_url"`
 	TFRURL             string  `yaml:"tfr_url"`
 }
@@ -152,11 +152,11 @@ func Load() (*Config, error) {
 	if cfg.DroneWeather.MaxPrecipitationMm == 0 {
 		cfg.DroneWeather.MaxPrecipitationMm = 0
 	}
-	if cfg.DroneWeather.MinTempF == 0 {
-		cfg.DroneWeather.MinTempF = 40
+	if cfg.DroneWeather.MinTempC == 0 {
+		cfg.DroneWeather.MinTempC = 4.4 // 40°F in Celsius
 	}
-	if cfg.DroneWeather.MaxTempF == 0 {
-		cfg.DroneWeather.MaxTempF = 95
+	if cfg.DroneWeather.MaxTempC == 0 {
+		cfg.DroneWeather.MaxTempC = 35.0 // 95°F in Celsius
 	}
 	if cfg.DroneWeather.SearchRadiusMiles == 0 {
 		cfg.DroneWeather.SearchRadiusMiles = 25
