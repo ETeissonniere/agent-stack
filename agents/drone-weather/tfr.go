@@ -2,17 +2,15 @@ package droneweather
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
 	"math"
 	"net/http"
 	"regexp"
-	"strconv"
 	"strings"
 	"time"
-
-	"github.com/PuerkitoBio/goquery"
 
 	"agent-stack/internal/models"
 	"agent-stack/shared/config"
@@ -33,34 +31,38 @@ func NewTFRClient(cfg *config.DroneWeatherConfig) *TFRClient {
 	}
 }
 
-// parseCoordinatePair parses a simple decimal coordinate pair "lat, lon"
-func parseCoordinatePair(coordPair string) (lat, lon float64, err error) {
-	parts := strings.Split(coordPair, ",")
-	if len(parts) != 2 {
-		return 0, 0, fmt.Errorf("invalid coordinate pair format: %s", coordPair)
-	}
+// GeoJSON structures for parsing TFR data
+type GeoJSONFeatureCollection struct {
+	Type     string           `json:"type"`
+	Features []GeoJSONFeature `json:"features"`
+}
 
-	lat, err = strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
-	if err != nil {
-		return 0, 0, fmt.Errorf("invalid latitude: %w", err)
-	}
+type GeoJSONFeature struct {
+	Type       string                 `json:"type"`
+	Properties GeoJSONProperties      `json:"properties"`
+	Geometry   GeoJSONGeometry        `json:"geometry"`
+}
 
-	lon, err = strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
-	if err != nil {
-		return 0, 0, fmt.Errorf("invalid longitude: %w", err)
-	}
+type GeoJSONProperties struct {
+	NotamKey   string `json:"NOTAM_KEY"`
+	LegalClass string `json:"LEGAL"`
+	Title      string `json:"TITLE"`
+	State      string `json:"STATE"`
+}
 
-	return lat, lon, nil
+type GeoJSONGeometry struct {
+	Type        string          `json:"type"`
+	Coordinates [][][]float64   `json:"coordinates"`
 }
 
 // TFR fetching and parsing functions
 
-// fetchActiveTFRs fetches the list of active TFRs from FAA website
+// fetchActiveTFRs fetches the list of active TFRs from FAA GeoJSON API
 func (t *TFRClient) fetchActiveTFRs(ctx context.Context) ([]*models.TFR, error) {
 	log.Printf("Fetching fresh TFR data")
 
-	// Use the current FAA TFR list endpoint (tfr3 is the newer version that FAA redirects to)
-	endpoint := "https://tfr.faa.gov/tfr3/?page=list"
+	// Use the FAA GeoServer WFS endpoint for TFR data
+	endpoint := "https://tfr.faa.gov/geoserver/TFR/ows?service=WFS&version=1.1.0&request=GetFeature&typeName=TFR:V_TFR_LOC&maxFeatures=300&outputFormat=application/json&srsname=EPSG:3857"
 	log.Printf("Fetching TFRs from: %s", endpoint)
 
 	tfrs, err := t.fetchFromEndpoint(ctx, endpoint)
@@ -93,118 +95,161 @@ func (t *TFRClient) fetchFromEndpoint(ctx context.Context, endpoint string) ([]*
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
-	// Default to HTML parsing
-	return t.parseHTMLTFRs(resp.Body)
+	// Parse GeoJSON response
+	return t.parseGeoJSONTFRs(resp.Body)
 }
 
-// parseHTMLTFRs parses TFR data from HTML content
-func (t *TFRClient) parseHTMLTFRs(body io.Reader) ([]*models.TFR, error) {
-	doc, err := goquery.NewDocumentFromReader(body)
-	if err != nil {
-		return nil, fmt.Errorf("parsing HTML: %w", err)
+// parseGeoJSONTFRs parses TFR data from GeoJSON content
+func (t *TFRClient) parseGeoJSONTFRs(body io.Reader) ([]*models.TFR, error) {
+	var featureCollection GeoJSONFeatureCollection
+	if err := json.NewDecoder(body).Decode(&featureCollection); err != nil {
+		return nil, fmt.Errorf("parsing GeoJSON: %w", err)
 	}
 
 	var tfrs []*models.TFR
 
-	// Look for table rows with TFR data
-	doc.Find("tr").Each(func(i int, s *goquery.Selection) {
-		// Skip header row
-		if i == 0 {
-			return
-		}
-
-		cells := s.Find("td")
-		if cells.Length() < 5 {
-			return // Not enough columns for TFR data
-		}
-
+	for _, feature := range featureCollection.Features {
 		tfr := &models.TFR{}
 
-		// Parse common table formats (adjust based on actual FAA table structure)
-		cells.Each(func(j int, cell *goquery.Selection) {
-			text := strings.TrimSpace(cell.Text())
-			switch j {
-			case 0: // Date
-				if date, err := time.Parse("01/02/2006", text); err == nil {
-					tfr.StartTime = date
-				}
-			case 1: // NOTAM
-				tfr.ID = text
-			case 2: // Facility
-				tfr.Name = text
-			case 3: // State
-				// Could be incorporated into name or reason
-			case 4: // Type
-				tfr.Type = text
-			case 5: // Description
-				tfr.Reason = text
-			}
-		})
+		// Extract basic properties
+		tfr.ID = feature.Properties.NotamKey
+		tfr.Type = feature.Properties.LegalClass
+		tfr.Name = feature.Properties.State
 
-		// Set default values for coordinates and radius
-		if tfr.Latitude == 0 && tfr.Longitude == 0 {
-			// Try to parse coordinates from the description if available
-			if tfr.Reason != "" {
-				if lat, lon, radius, found := t.parseSimpleCoordinates(tfr.Reason); found {
-					tfr.Latitude = lat
-					tfr.Longitude = lon
-					tfr.Radius = radius
-				}
-			}
+		// Parse dates from title
+		startTime, endTime, err := t.parseTFRDatesFromTitle(feature.Properties.Title)
+		if err != nil {
+			// For TFRs without clear date patterns (permanent restrictions), assume they're active
+			log.Printf("Using default dates for TFR %s (likely permanent): %v", tfr.ID, err)
+			tfr.StartTime = time.Now().Add(-24 * time.Hour) // Started yesterday
+			tfr.EndTime = time.Now().Add(365 * 24 * time.Hour) // Valid for a year
+		} else {
+			tfr.StartTime = startTime
+			tfr.EndTime = endTime
+		}
+
+		// Calculate center point and radius from polygon
+		if feature.Geometry.Type == "Polygon" && len(feature.Geometry.Coordinates) > 0 {
+			lat, lon, radius := t.calculatePolygonCenter(feature.Geometry.Coordinates[0])
+			tfr.Latitude = lat
+			tfr.Longitude = lon
+			tfr.Radius = radius
 		}
 
 		// Only add if we have basic info
 		if tfr.ID != "" && tfr.Type != "" {
 			tfrs = append(tfrs, tfr)
 		}
-	})
+	}
 
 	return tfrs, nil
 }
 
-// parseSimpleCoordinates attempts to extract basic coordinate and radius info from text
-func (t *TFRClient) parseSimpleCoordinates(text string) (lat, lon, radius float64, found bool) {
-	// Look for patterns like "within X miles of lat, lon" or "centered at lat, lon"
-	radiusRegex := regexp.MustCompile(`(?i)(?:within\s+a?\s*(\d+(?:\.\d+)?)[- ]?(?:nautical\s+)?miles?|radius\s+(\d+(?:\.\d+)?)\s*(?:nautical\s+)?miles?)`)
-	coordRegex := regexp.MustCompile(`(-?\d+\.?\d*),\s*(-?\d+\.?\d*)`)
-
-	radiusMatches := radiusRegex.FindStringSubmatch(text)
-	coordMatches := coordRegex.FindStringSubmatch(text)
-
-	if len(coordMatches) >= 3 {
-		var err error
-		lat, err = strconv.ParseFloat(coordMatches[1], 64)
-		if err != nil {
-			return 0, 0, 0, false
-		}
-
-		lon, err = strconv.ParseFloat(coordMatches[2], 64)
-		if err != nil {
-			return 0, 0, 0, false
-		}
-
-		// Try to get radius
-		if len(radiusMatches) >= 2 {
-			var radiusStr string
-			if radiusMatches[1] != "" {
-				radiusStr = radiusMatches[1]
-			} else {
-				radiusStr = radiusMatches[2]
-			}
-
-			if r, err := strconv.ParseFloat(radiusStr, 64); err == nil {
-				radius = r
-			} else {
-				radius = 10 // default 10 nautical miles
-			}
-		} else {
-			radius = 10 // default 10 nautical miles
-		}
-
-		return lat, lon, radius, true
+// parseTFRDatesFromTitle parses dates from TFR title format
+func (t *TFRClient) parseTFRDatesFromTitle(title string) (startTime, endTime time.Time, err error) {
+	if title == "" {
+		return time.Time{}, time.Time{}, fmt.Errorf("empty title string")
 	}
 
-	return 0, 0, 0, false
+	// Extract date portion from title like "VIEQUES, PR, Monday, January 13, 2025 through Friday, December 19, 2025 UTC"
+	// Remove location and timezone info, focus on the date range
+	datePartRegex := regexp.MustCompile(`([A-Z][a-z]+day,\s+[A-Z][a-z]+\s+\d{1,2},\s+\d{4}(?:\s+through\s+[A-Z][a-z]+day,\s+[A-Z][a-z]+\s+\d{1,2},\s+\d{4})?)`)
+	matches := datePartRegex.FindStringSubmatch(title)
+	if len(matches) < 2 {
+		return time.Time{}, time.Time{}, fmt.Errorf("no date pattern found in title: %s", title)
+	}
+
+	dateStr := matches[1]
+
+	// Handle range formats like "Monday, January 13, 2025 through Friday, December 19, 2025"
+	throughRegex := regexp.MustCompile(`(.+?)\s+through\s+(.+)`)
+	if throughMatches := throughRegex.FindStringSubmatch(dateStr); len(throughMatches) == 3 {
+		start, err1 := t.parseFlexibleDate(strings.TrimSpace(throughMatches[1]))
+		end, err2 := t.parseFlexibleDate(strings.TrimSpace(throughMatches[2]))
+		if err1 != nil || err2 != nil {
+			return time.Time{}, time.Time{}, fmt.Errorf("parsing date range: %v, %v", err1, err2)
+		}
+		return start, end, nil
+	}
+
+	// Handle single date
+	single, err := t.parseFlexibleDate(strings.TrimSpace(dateStr))
+	if err != nil {
+		return time.Time{}, time.Time{}, fmt.Errorf("parsing single date: %w", err)
+	}
+	return single, single.Add(24 * time.Hour), nil
+}
+
+// parseFlexibleDate attempts to parse various date formats
+func (t *TFRClient) parseFlexibleDate(dateStr string) (time.Time, error) {
+	formats := []string{
+		"Monday, January 2, 2006",
+		"January 2, 2006",
+		"01/02/2006",
+		"2006-01-02",
+		"2006-01-02T15:04:05Z",
+	}
+
+	for _, format := range formats {
+		if t, err := time.Parse(format, dateStr); err == nil {
+			return t, nil
+		}
+	}
+
+	return time.Time{}, fmt.Errorf("unable to parse date: %s", dateStr)
+}
+
+// calculatePolygonCenter calculates the centroid and approximate radius of a polygon
+func (t *TFRClient) calculatePolygonCenter(coordinates [][]float64) (lat, lon, radius float64) {
+	if len(coordinates) == 0 {
+		return 0, 0, 0
+	}
+
+	// Convert Web Mercator coordinates to lat/lon and calculate centroid
+	var latSum, lonSum float64
+	var validPoints int
+
+	for _, coord := range coordinates {
+		if len(coord) >= 2 {
+			mercatorLat, mercatorLon := coord[1], coord[0]
+			lat, lon := t.webMercatorToWGS84(mercatorLat, mercatorLon)
+			latSum += lat
+			lonSum += lon
+			validPoints++
+		}
+	}
+
+	if validPoints == 0 {
+		return 0, 0, 0
+	}
+
+	// Calculate centroid
+	centerLat := latSum / float64(validPoints)
+	centerLon := lonSum / float64(validPoints)
+
+	// Calculate approximate radius as max distance from center to any vertex
+	var maxDistance float64
+	for _, coord := range coordinates {
+		if len(coord) >= 2 {
+			mercatorLat, mercatorLon := coord[1], coord[0]
+			lat, lon := t.webMercatorToWGS84(mercatorLat, mercatorLon)
+			distance := t.calculateDistance(centerLat, centerLon, lat, lon)
+			if distance > maxDistance {
+				maxDistance = distance
+			}
+		}
+	}
+
+	return centerLat, centerLon, maxDistance
+}
+
+// webMercatorToWGS84 converts Web Mercator (EPSG:3857) coordinates to WGS84 lat/lon
+func (t *TFRClient) webMercatorToWGS84(mercatorY, mercatorX float64) (lat, lon float64) {
+	// Convert from Web Mercator to WGS84
+	lon = mercatorX / 20037508.34 * 180
+	lat = mercatorY / 20037508.34 * 180
+	lat = 180 / math.Pi * (2*math.Atan(math.Exp(lat*math.Pi/180)) - math.Pi/2)
+	return lat, lon
 }
 
 // CheckTFRs checks for active TFRs in the area around the given coordinates
@@ -225,7 +270,8 @@ func (t *TFRClient) CheckTFRs(ctx context.Context, lat, lon float64) (*models.TF
 
 	for _, tfr := range allTFRs {
 		// Check if TFR is currently active
-		if tfr.StartTime.After(now) || tfr.EndTime.Before(now) {
+		// Skip if TFR hasn't started yet OR if TFR has already ended
+		if tfr.StartTime.After(now) || (!tfr.EndTime.IsZero() && tfr.EndTime.Before(now)) {
 			continue // TFR is not currently active
 		}
 
