@@ -35,10 +35,10 @@ Monitors weather conditions and airspace restrictions to determine safe drone fl
 - 🌍 **Location-Based**: Configure for any location with latitude/longitude coordinates
 
 **Weather Criteria Monitored:**
-- Wind speed (default max: 15 mph)
-- Visibility (default min: 3 miles)
+- Wind speed (default max: 25 km/h)
+- Visibility (default min: 5 km)
 - Precipitation (default max: 0 mm)
-- Temperature range (default: 40-95°F / 4.4-35°C)
+- Temperature range (default: 4.4-35°C / 40-95°F)
 - Active TFRs within configurable radius (default: 25 miles)
 
 ## Features
@@ -199,11 +199,11 @@ drone_weather:
   search_radius_miles: 25
 
   # Weather safety thresholds
-  max_wind_speed_mph: 15
-  min_visibility_miles: 3
-  max_precipitation_mm: 0
-  min_temp_c: 4.4   # 40°F
-  max_temp_c: 35.0  # 95°F
+  max_wind_speed_kmh: 25    # 25 km/h wind speed limit
+  min_visibility_km: 5      # 5 km visibility requirement
+  max_precipitation_mm: 0   # No precipitation allowed
+  min_temp_c: 4.4          # 4.4°C minimum temperature
+  max_temp_c: 35.0         # 35°C maximum temperature
 
   # API endpoint (default provided)
   weather_url: "https://api.open-meteo.com/v1/forecast"
@@ -221,8 +221,8 @@ Configure the drone weather agent for your location and safety preferences:
  - `home_latitude`/`home_longitude`: Your primary flying location coordinates
  - `home_name`: Descriptive name for your location (used in emails)
  - `search_radius_miles`: Radius to check for TFRs around your location (default: 25)
- - `max_wind_speed_mph`: Maximum safe wind speed for flying (default: 15)
- - `min_visibility_miles`: Minimum required visibility (default: 3)
+ - `max_wind_speed_kmh`: Maximum safe wind speed for flying (default: 25 km/h)
+ - `min_visibility_km`: Minimum required visibility (default: 5 km)
  - `max_precipitation_mm`: Maximum precipitation allowed (default: 0)
  - `min_temp_c`/`max_temp_c`: Safe temperature range in Celsius
 
