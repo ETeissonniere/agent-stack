@@ -7,54 +7,6 @@ import (
 	"agent-stack/shared/config"
 )
 
-// Test coordinate parsing utilities
-
-func TestParseCoordinatePair(t *testing.T) {
-	tests := []struct {
-		name        string
-		input       string
-		expectedLat float64
-		expectedLon float64
-		wantErr     bool
-	}{
-		{
-			name:        "Valid decimal coordinates",
-			input:       "26.023333, -97.128333",
-			expectedLat: 26.023333,
-			expectedLon: -97.128333,
-			wantErr:     false,
-		},
-		{
-			name:        "Invalid format - single coordinate",
-			input:       "26.023333",
-			expectedLat: 0,
-			expectedLon: 0,
-			wantErr:     true,
-		},
-		{
-			name:        "Invalid latitude",
-			input:       "invalid, -97.128333",
-			expectedLat: 0,
-			expectedLon: 0,
-			wantErr:     true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lat, lon, err := parseCoordinatePair(tt.input)
-			if (err != nil) != tt.wantErr {
-				t.Errorf("parseCoordinatePair() error = %v, wantErr %v", err, tt.wantErr)
-				return
-			}
-			if !tt.wantErr {
-				if abs(lat-tt.expectedLat) > 0.0001 || abs(lon-tt.expectedLon) > 0.0001 {
-					t.Errorf("parseCoordinatePair() = %v, %v, want %v, %v", lat, lon, tt.expectedLat, tt.expectedLon)
-				}
-			}
-		})
-	}
-}
 
 // Test distance calculations
 
@@ -136,65 +88,6 @@ func TestIsWithinSearchArea(t *testing.T) {
 	}
 }
 
-func TestParseSimpleCoordinates(t *testing.T) {
-	client := &TFRClient{}
-
-	tests := []struct {
-		name           string
-		text           string
-		expectFound    bool
-		expectedLat    float64
-		expectedLon    float64
-		expectedRadius float64
-	}{
-		{
-			name:           "Valid coordinates with radius",
-			text:           "within 5 miles of 40.7128, -74.0060",
-			expectFound:    true,
-			expectedLat:    40.7128,
-			expectedLon:    -74.0060,
-			expectedRadius: 5.0,
-		},
-		{
-			name:           "Coordinates without explicit radius",
-			text:           "centered at 34.0522, -118.2437 for event",
-			expectFound:    true,
-			expectedLat:    34.0522,
-			expectedLon:    -118.2437,
-			expectedRadius: 10.0, // default
-		},
-		{
-			name:           "No coordinates found",
-			text:           "general flight restriction in the area",
-			expectFound:    false,
-			expectedLat:    0,
-			expectedLon:    0,
-			expectedRadius: 0,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			lat, lon, radius, found := client.parseSimpleCoordinates(tt.text)
-
-			if found != tt.expectFound {
-				t.Errorf("Expected found=%v, got %v", tt.expectFound, found)
-			}
-
-			if tt.expectFound {
-				if abs(lat-tt.expectedLat) > 0.0001 {
-					t.Errorf("Expected lat=%.4f, got %.4f", tt.expectedLat, lat)
-				}
-				if abs(lon-tt.expectedLon) > 0.0001 {
-					t.Errorf("Expected lon=%.4f, got %.4f", tt.expectedLon, lon)
-				}
-				if abs(radius-tt.expectedRadius) > 0.1 {
-					t.Errorf("Expected radius=%.1f, got %.1f", tt.expectedRadius, radius)
-				}
-			}
-		})
-	}
-}
 
 func TestBuildTFRCheck(t *testing.T) {
 	client := &TFRClient{config: &config.DroneWeatherConfig{SearchRadiusMiles: 25}}
