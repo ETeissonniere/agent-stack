@@ -11,11 +11,11 @@ import (
 func TestAnalyzeWeatherConditions(t *testing.T) {
 	client := &WeatherClient{
 		config: &config.DroneWeatherConfig{
-			MaxWindSpeedMph:      15,
-			MinVisibilityMiles:   3,
+			MaxWindSpeedKmh:      25,   // 25 km/h wind limit
+			MinVisibilityKm:      5,    // 5 km visibility limit
 			MaxPrecipitationMm:   0.0,
-			MinTempC:             4.4,  // 40°F
-			MaxTempC:             35.0, // 95°F
+			MinTempC:             4.4,  // 4.4°C minimum temp
+			MaxTempC:             35.0, // 35°C maximum temp
 		},
 	}
 
@@ -28,9 +28,9 @@ func TestAnalyzeWeatherConditions(t *testing.T) {
 		{
 			name: "Perfect flying conditions",
 			weather: &models.WeatherData{
-				Temperature:   20.0, // 68°F
-				WindSpeed:     4.0,  // ~9 mph
-				Visibility:    10.0, // ~6 miles
+				Temperature:   20.0, // 20°C
+				WindSpeed:     14.4, // 14.4 km/h - light winds
+				Visibility:    10.0, // 10 km - good visibility
 				Precipitation: 0.0,
 				Time:          time.Now(),
 			},
@@ -41,7 +41,7 @@ func TestAnalyzeWeatherConditions(t *testing.T) {
 			name: "Wind too high",
 			weather: &models.WeatherData{
 				Temperature:   20.0,
-				WindSpeed:     8.0, // ~18 mph (over 15 mph limit)
+				WindSpeed:     28.8, // 28.8 km/h - over 25 km/h limit
 				Visibility:    10.0,
 				Precipitation: 0.0,
 				Time:          time.Now(),
@@ -53,8 +53,8 @@ func TestAnalyzeWeatherConditions(t *testing.T) {
 			name: "Visibility too low",
 			weather: &models.WeatherData{
 				Temperature:   20.0,
-				WindSpeed:     4.0,
-				Visibility:    2.0, // ~1.2 miles (under 3 mile limit)
+				WindSpeed:     14.4, // 14.4 km/h - good wind speed
+				Visibility:    2.0,  // 2.0 km - under 5 km limit
 				Precipitation: 0.0,
 				Time:          time.Now(),
 			},
@@ -65,9 +65,9 @@ func TestAnalyzeWeatherConditions(t *testing.T) {
 			name: "Precipitation present",
 			weather: &models.WeatherData{
 				Temperature:   20.0,
-				WindSpeed:     4.0,
+				WindSpeed:     14.4, // 14.4 km/h - good wind speed
 				Visibility:    10.0,
-				Precipitation: 1.0, // Any precipitation
+				Precipitation: 1.0, // 1.0 mm precipitation present
 				Time:          time.Now(),
 			},
 			expectFlyable: false,
@@ -76,8 +76,8 @@ func TestAnalyzeWeatherConditions(t *testing.T) {
 		{
 			name: "Temperature too cold",
 			weather: &models.WeatherData{
-				Temperature:   0.0, // 32°F (under 40°F limit)
-				WindSpeed:     4.0,
+				Temperature:   0.0,  // 0°C - under 4.4°C limit
+				WindSpeed:     14.4, // 14.4 km/h - good wind speed
 				Visibility:    10.0,
 				Precipitation: 0.0,
 				Time:          time.Now(),
@@ -88,8 +88,8 @@ func TestAnalyzeWeatherConditions(t *testing.T) {
 		{
 			name: "Temperature too hot",
 			weather: &models.WeatherData{
-				Temperature:   40.0, // 104°F (over 95°F limit)
-				WindSpeed:     4.0,
+				Temperature:   40.0, // 40°C - over 35°C limit
+				WindSpeed:     14.4, // 14.4 km/h - good wind speed
 				Visibility:    10.0,
 				Precipitation: 0.0,
 				Time:          time.Now(),
@@ -100,10 +100,10 @@ func TestAnalyzeWeatherConditions(t *testing.T) {
 		{
 			name: "Multiple issues",
 			weather: &models.WeatherData{
-				Temperature:   0.0,  // Too cold
-				WindSpeed:     10.0, // Too windy
-				Visibility:    1.0,  // Too low visibility
-				Precipitation: 2.0,  // Rain
+				Temperature:   0.0,  // 0°C - too cold (under 4.4°C)
+				WindSpeed:     36.0, // 36 km/h - too windy (over 25 km/h)
+				Visibility:    1.0,  // 1 km - too low visibility (under 5 km)
+				Precipitation: 2.0,  // 2.0 mm rain
 				Time:          time.Now(),
 			},
 			expectFlyable: false,
@@ -123,15 +123,15 @@ func TestAnalyzeWeatherConditions(t *testing.T) {
 				t.Errorf("Expected %d reasons, got %d: %v", tt.expectReasons, len(analysis.Reasons), analysis.Reasons)
 			}
 
-			// Verify unit conversions are reasonable
-			if analysis.WindSpeedMph < 0 {
-				t.Error("Wind speed in mph should not be negative")
+			// Verify basic data consistency
+			if tt.weather.WindSpeed < 0 {
+				t.Error("Wind speed should not be negative")
 			}
-			if analysis.TempF < -100 || analysis.TempF > 200 {
-				t.Errorf("Temperature in F seems unreasonable: %.1f", analysis.TempF)
+			if tt.weather.Temperature < -100 || tt.weather.Temperature > 100 {
+				t.Errorf("Temperature seems unreasonable: %.1f°C", tt.weather.Temperature)
 			}
-			if analysis.VisibilityMi < 0 {
-				t.Error("Visibility in miles should not be negative")
+			if tt.weather.Visibility < 0 {
+				t.Error("Visibility should not be negative")
 			}
 
 			// Verify wind forecast is set
@@ -142,33 +142,32 @@ func TestAnalyzeWeatherConditions(t *testing.T) {
 	}
 }
 
-func TestUnitConversions(t *testing.T) {
-	client := &WeatherClient{config: &config.DroneWeatherConfig{}}
+func TestBasicAnalysis(t *testing.T) {
+	client := &WeatherClient{config: &config.DroneWeatherConfig{
+		MaxWindSpeedKmh:     25,  // 25 km/h limit
+		MinVisibilityKm:     5,   // 5 km limit
+		MaxPrecipitationMm:  0.0,
+		MinTempC:            4.4,
+		MaxTempC:            35.0,
+	}}
 
 	weather := &models.WeatherData{
-		Temperature:   0.0,  // 0°C = 32°F
-		WindSpeed:     10.0, // 10 m/s = 22.37 mph
-		Visibility:    5.0,  // 5 km = 3.11 miles
+		Temperature:   20.0, // 20°C - good temperature
+		WindSpeed:     15.0, // 15 km/h - good wind speed
+		Visibility:    10.0, // 10 km - good visibility
+		Precipitation: 0.0,  // no precipitation
 	}
 
 	analysis := client.AnalyzeWeatherConditions(weather)
 
-	// Test temperature conversion (C to F)
-	expectedTempF := 32.0
-	if abs(analysis.TempF-expectedTempF) > 0.1 {
-		t.Errorf("Temperature conversion: expected %.1f°F, got %.1f°F", expectedTempF, analysis.TempF)
+	// Should be flyable with these good conditions
+	if !analysis.IsFlyable {
+		t.Errorf("Expected flyable conditions, got not flyable with reasons: %v", analysis.Reasons)
 	}
 
-	// Test wind speed conversion (m/s to mph)
-	expectedWindMph := 22.37
-	if abs(analysis.WindSpeedMph-expectedWindMph) > 0.1 {
-		t.Errorf("Wind speed conversion: expected %.2f mph, got %.2f mph", expectedWindMph, analysis.WindSpeedMph)
-	}
-
-	// Test visibility conversion (km to miles)
-	expectedVisMi := 3.11
-	if abs(analysis.VisibilityMi-expectedVisMi) > 0.1 {
-		t.Errorf("Visibility conversion: expected %.2f miles, got %.2f miles", expectedVisMi, analysis.VisibilityMi)
+	// Should have no blocking reasons
+	if len(analysis.Reasons) > 0 {
+		t.Errorf("Expected no reasons for good conditions, got: %v", analysis.Reasons)
 	}
 }
 
@@ -177,19 +176,19 @@ func TestWindForecastGeneration(t *testing.T) {
 
 	tests := []struct {
 		name         string
-		windSpeedMs  float64
+		windSpeedKmh float64
 		expectedText string
 	}{
-		{"Very light winds", 2.0, "Very light winds, excellent conditions"},
-		{"Light winds", 4.0, "Light winds, good conditions"},
-		{"Moderate winds", 6.0, "Moderate winds, manageable"},
-		{"Strong winds", 8.0, "Strong winds, challenging conditions"},
+		{"Very light winds", 7.0, "Very light winds, excellent conditions"},   // 7 km/h - very light
+		{"Light winds", 14.0, "Light winds, good conditions"},                 // 14 km/h - light
+		{"Moderate winds", 22.0, "Moderate winds, manageable"},                // 22 km/h - moderate
+		{"Strong winds", 30.0, "Strong winds, challenging conditions"},        // 30 km/h - strong
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			weather := &models.WeatherData{
-				WindSpeed: tt.windSpeedMs,
+				WindSpeed: tt.windSpeedKmh,
 				Temperature: 20.0,
 				Visibility: 10.0,
 				Precipitation: 0.0,

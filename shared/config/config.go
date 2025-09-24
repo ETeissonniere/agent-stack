@@ -59,8 +59,8 @@ type DroneWeatherConfig struct {
 	HomeLongitude       float64 `yaml:"home_longitude"`
 	HomeName           string  `yaml:"home_name"`
 	SearchRadiusMiles  int     `yaml:"search_radius_miles"`
-	MaxWindSpeedMph    int     `yaml:"max_wind_speed_mph"`
-	MinVisibilityMiles int     `yaml:"min_visibility_miles"`
+	MaxWindSpeedKmh    int     `yaml:"max_wind_speed_kmh"`
+	MinVisibilityKm    int     `yaml:"min_visibility_km"`
 	MaxPrecipitationMm float64 `yaml:"max_precipitation_mm"`
 	MinTempC           float64 `yaml:"min_temp_c"`
 	MaxTempC           float64 `yaml:"max_temp_c"`
@@ -143,11 +143,11 @@ func Load() (*Config, error) {
 	if cfg.DroneWeather.TFRURL == "" {
 		cfg.DroneWeather.TFRURL = "https://tfr.faa.gov/tfr2/list.html"
 	}
-	if cfg.DroneWeather.MaxWindSpeedMph == 0 {
-		cfg.DroneWeather.MaxWindSpeedMph = 15
+	if cfg.DroneWeather.MaxWindSpeedKmh == 0 {
+		cfg.DroneWeather.MaxWindSpeedKmh = 25 // ~15 mph converted to km/h
 	}
-	if cfg.DroneWeather.MinVisibilityMiles == 0 {
-		cfg.DroneWeather.MinVisibilityMiles = 3
+	if cfg.DroneWeather.MinVisibilityKm == 0 {
+		cfg.DroneWeather.MinVisibilityKm = 5 // ~3 miles converted to km
 	}
 	if cfg.DroneWeather.MaxPrecipitationMm == 0 {
 		cfg.DroneWeather.MaxPrecipitationMm = 0

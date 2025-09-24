@@ -31,6 +31,11 @@ type OpenMeteoResponse struct {
 		Visibility    float64 `json:"visibility"`
 		Precipitation float64 `json:"precipitation"`
 	} `json:"current"`
+	Hourly struct {
+		Time      []string  `json:"time"`
+		WindSpeed []float64 `json:"wind_speed_10m"`
+		WindGusts []float64 `json:"wind_gusts_10m"`
+	} `json:"hourly"`
 }
 
 func NewWeatherClient(cfg *config.DroneWeatherConfig) *WeatherClient {
@@ -44,7 +49,7 @@ func NewWeatherClient(cfg *config.DroneWeatherConfig) *WeatherClient {
 
 // GetCurrentWeather fetches current weather data from Open-Meteo API
 func (w *WeatherClient) GetCurrentWeather(ctx context.Context, lat, lon float64) (*models.WeatherData, error) {
-	url := fmt.Sprintf("%s?latitude=%.4f&longitude=%.4f&current=temperature_2m,wind_speed_10m,wind_direction_10m,visibility,precipitation&wind_speed_unit=ms&temperature_unit=celsius&timezone=auto",
+	url := fmt.Sprintf("%s?latitude=%.4f&longitude=%.4f&current=temperature_2m,wind_speed_10m,wind_direction_10m,visibility,precipitation&hourly=wind_speed_10m,wind_gusts_10m&wind_speed_unit=kmh&temperature_unit=celsius&timezone=auto&forecast_hours=24",
 		w.config.WeatherURL, lat, lon)
 
 	log.Printf("Fetching weather data from: %s", url)
@@ -81,16 +86,37 @@ func (w *WeatherClient) GetCurrentWeather(ctx context.Context, lat, lon float64)
 		return nil, fmt.Errorf("failed to parse weather time: %w", err)
 	}
 
+	// Parse hourly data
+	var hourlyData *models.HourlyForecast
+	if len(apiResp.Hourly.Time) > 0 && len(apiResp.Hourly.WindSpeed) > 0 && len(apiResp.Hourly.WindGusts) > 0 {
+		hourlyData = &models.HourlyForecast{
+			Times:      make([]time.Time, len(apiResp.Hourly.Time)),
+			WindSpeeds: apiResp.Hourly.WindSpeed,
+			WindGusts:  apiResp.Hourly.WindGusts,
+		}
+
+		// Parse hourly timestamps
+		for i, timeStr := range apiResp.Hourly.Time {
+			parsedHourlyTime, err := time.ParseInLocation("2006-01-02T15:04", timeStr, location)
+			if err != nil {
+				log.Printf("Warning: Failed to parse hourly time %s: %v", timeStr, err)
+				continue
+			}
+			hourlyData.Times[i] = parsedHourlyTime
+		}
+	}
+
 	return &models.WeatherData{
 		Latitude:      apiResp.Latitude,
 		Longitude:     apiResp.Longitude,
 		Temperature:   apiResp.Current.Temperature,
-		WindSpeed:     apiResp.Current.WindSpeed,
+		WindSpeed:     apiResp.Current.WindSpeed, // Now in km/h from API
 		WindDir:       apiResp.Current.WindDirection,
 		Visibility:    apiResp.Current.Visibility / 1000, // Convert m to km
 		Precipitation: apiResp.Current.Precipitation,
 		Time:          parsedTime,
 		Timezone:      apiResp.Timezone,
+		HourlyData:    hourlyData,
 	}, nil
 }
 
@@ -100,23 +126,39 @@ func (w *WeatherClient) AnalyzeWeatherConditions(data *models.WeatherData) *mode
 		Data:         data,
 		IsFlyable:    true,
 		Reasons:      []string{},
-		WindSpeedMph: data.WindSpeed * 2.237,                // m/s to mph
-		TempF:        (data.Temperature * 9 / 5) + 32,       // C to F (for display)
-		VisibilityMi: data.Visibility * 0.621371,            // km to miles
 		BestWindow:   "9 AM - 4 PM",                         // Default flying window
 		WindForecast: "Light and stable through afternoon",  // Simplified forecast
 	}
 
+	// Calculate average wind values from hourly data
+	if data.HourlyData != nil && len(data.HourlyData.WindSpeeds) > 0 {
+		// Calculate average wind speed
+		var totalWindSpeed float64
+		for _, speed := range data.HourlyData.WindSpeeds {
+			totalWindSpeed += speed
+		}
+		analysis.AvgWindSpeedKmh = totalWindSpeed / float64(len(data.HourlyData.WindSpeeds))
+
+		// Calculate average wind gusts
+		if len(data.HourlyData.WindGusts) > 0 {
+			var totalGusts float64
+			for _, gust := range data.HourlyData.WindGusts {
+				totalGusts += gust
+			}
+			analysis.AvgWindGustsKmh = totalGusts / float64(len(data.HourlyData.WindGusts))
+		}
+	}
+
 	// Check wind speed
-	if analysis.WindSpeedMph > float64(w.config.MaxWindSpeedMph) {
+	if data.WindSpeed > float64(w.config.MaxWindSpeedKmh) {
 		analysis.IsFlyable = false
-		analysis.Reasons = append(analysis.Reasons, fmt.Sprintf("Wind speed too high: %.1f mph (max: %d mph)", analysis.WindSpeedMph, w.config.MaxWindSpeedMph))
+		analysis.Reasons = append(analysis.Reasons, fmt.Sprintf("Wind speed too high: %.1f km/h (max: %d km/h)", data.WindSpeed, w.config.MaxWindSpeedKmh))
 	}
 
 	// Check visibility
-	if analysis.VisibilityMi < float64(w.config.MinVisibilityMiles) {
+	if data.Visibility < float64(w.config.MinVisibilityKm) {
 		analysis.IsFlyable = false
-		analysis.Reasons = append(analysis.Reasons, fmt.Sprintf("Visibility too low: %.1f miles (min: %d miles)", analysis.VisibilityMi, w.config.MinVisibilityMiles))
+		analysis.Reasons = append(analysis.Reasons, fmt.Sprintf("Visibility too low: %.1f km (min: %d km)", data.Visibility, w.config.MinVisibilityKm))
 	}
 
 	// Check precipitation
@@ -136,12 +178,12 @@ func (w *WeatherClient) AnalyzeWeatherConditions(data *models.WeatherData) *mode
 		analysis.Reasons = append(analysis.Reasons, fmt.Sprintf("Temperature too high: %.1f°C (max: %.1f°C)", data.Temperature, w.config.MaxTempC))
 	}
 
-	// Update wind forecast based on conditions
-	if analysis.WindSpeedMph < 5 {
+	// Update wind forecast based on conditions (using km/h)
+	if data.WindSpeed < 8 { // ~5 mph
 		analysis.WindForecast = "Very light winds, excellent conditions"
-	} else if analysis.WindSpeedMph < 10 {
+	} else if data.WindSpeed < 16 { // ~10 mph
 		analysis.WindForecast = "Light winds, good conditions"
-	} else if analysis.WindSpeedMph < 15 {
+	} else if data.WindSpeed < 24 { // ~15 mph
 		analysis.WindForecast = "Moderate winds, manageable"
 	} else {
 		analysis.WindForecast = "Strong winds, challenging conditions"
@@ -149,3 +191,5 @@ func (w *WeatherClient) AnalyzeWeatherConditions(data *models.WeatherData) *mode
 
 	return analysis
 }
+
+

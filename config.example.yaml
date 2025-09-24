@@ -44,12 +44,12 @@ drone_weather:
   # TFR search area around home location
   search_radius_miles: 25
 
-  # Weather thresholds
-  max_wind_speed_mph: 15
-  min_visibility_miles: 3
-  max_precipitation_mm: 0
-  min_temp_c: 4.4   # 40°F
-  max_temp_c: 35.0  # 95°F
+  # Weather thresholds (SI units)
+  max_wind_speed_kmh: 25    # 25 km/h wind speed limit
+  min_visibility_km: 5      # 5 km visibility requirement
+  max_precipitation_mm: 0   # No precipitation allowed
+  min_temp_c: 4.4          # 4.4°C minimum temperature
+  max_temp_c: 35.0         # 35°C maximum temperature
 
   # APIs (defaults provided)
   weather_url: "https://api.open-meteo.com/v1/forecast"

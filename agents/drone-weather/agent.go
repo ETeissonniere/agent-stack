@@ -102,9 +102,9 @@ func (d *DroneWeatherAgent) RunOnce(ctx context.Context, events *scheduler.Agent
 
 	// Analyze weather conditions
 	weatherAnalysis := d.weatherClient.AnalyzeWeatherConditions(weatherData)
-	log.Printf("Weather analysis: flyable=%t, temp=%.1f°C (%.1f°F), wind=%.1f mph, visibility=%.1f mi, time=%s",
-		weatherAnalysis.IsFlyable, weatherData.Temperature, weatherAnalysis.TempF, weatherAnalysis.WindSpeedMph,
-		weatherAnalysis.VisibilityMi, weatherData.Time.Format("15:04 MST"))
+	log.Printf("Weather analysis: flyable=%t, temp=%.1f°C, wind=%.1f km/h, visibility=%.1f km, time=%s",
+		weatherAnalysis.IsFlyable, weatherData.Temperature, weatherData.WindSpeed,
+		weatherData.Visibility, weatherData.Time.Format("15:04 MST"))
 
 	// Check TFRs
 	log.Println("Checking TFRs...")

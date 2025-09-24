@@ -142,17 +142,16 @@ func TestGenerateEmailBody(t *testing.T) {
 		WeatherAnalysis: &models.WeatherAnalysis{
 			Data: &models.WeatherData{
 				Temperature:   20.0,
-				WindSpeed:     4.0,
-				Visibility:    10.0,
+				WindSpeed:     15.0, // km/h
+				Visibility:    10.0, // km
 				Precipitation: 0.0,
 				Time:          time.Now(),
 			},
-			IsFlyable:     true,
-			WindSpeedMph:  9.0,
-			TempF:         68.0,
-			VisibilityMi:  6.2,
-			BestWindow:    "9 AM - 4 PM",
-			WindForecast:  "Light winds, good conditions",
+			IsFlyable:       true,
+			AvgWindSpeedKmh: 14.5,
+			AvgWindGustsKmh: 18.2,
+			BestWindow:      "9 AM - 4 PM",
+			WindForecast:    "Light winds, good conditions",
 		},
 		TFRCheck: &models.TFRCheck{
 			HasActiveTFRs: false,
