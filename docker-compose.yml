@@ -6,11 +6,35 @@ services:
     build: .
     container_name: youtube-curator
     restart: unless-stopped
+    command: ["./youtube-curator"]
     env_file:
       - .env
     environment:
       - CONFIG_FILE=/app/config.yaml
       # Keep app port and healthcheck in sync (optional override)
+      - HEALTHCHECK_PORT=${HEALTHCHECK_PORT:-8080}
+    volumes:
+      - ./config.yaml:/app/config.yaml:ro
+      - ./data:/app/data
+      - /etc/localtime:/etc/localtime:ro
+      - /etc/timezone:/etc/timezone:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:${HEALTHCHECK_PORT:-8080}/health"]
+      interval: 1m
+      timeout: 30s
+      retries: 3
+      start_period: 30s
+
+  drone-weather:
+    image: ghcr.io/eteissonniere/agent-stack:latest
+    build: .
+    container_name: drone-weather
+    restart: unless-stopped
+    command: ["./drone-weather"]
+    env_file:
+      - .env
+    environment:
+      - CONFIG_FILE=/app/config.yaml
       - HEALTHCHECK_PORT=${HEALTHCHECK_PORT:-8080}
     volumes:
       - ./config.yaml:/app/config.yaml:ro
