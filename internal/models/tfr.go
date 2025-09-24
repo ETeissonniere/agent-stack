@@ -11,9 +11,7 @@ type TFR struct {
 	EndTime   time.Time `json:"end_time"`
 	Latitude  float64   `json:"latitude"`
 	Longitude float64   `json:"longitude"`
-	Radius    float64   `json:"radius"`  // nautical miles
-	AltMin    int       `json:"alt_min"` // feet
-	AltMax    int       `json:"alt_max"` // feet
+	Radius    float64   `json:"radius"` // nautical miles
 	Reason    string    `json:"reason"`
 }
 

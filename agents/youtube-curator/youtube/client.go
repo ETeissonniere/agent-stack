@@ -425,17 +425,10 @@ func (c *Client) GetSubscriptionVideos(ctx context.Context, maxResults int64) ([
 				ID:              item.Id,
 				Title:           item.Snippet.Title,
 				Description:     item.Snippet.Description,
-				ChannelID:       item.Snippet.ChannelId,
 				ChannelTitle:    item.Snippet.ChannelTitle,
 				Duration:        item.ContentDetails.Duration,
 				DurationSeconds: durationSeconds,
 				URL:             fmt.Sprintf("https://www.youtube.com/watch?v=%s", item.Id),
-			}
-
-			if item.Snippet.Thumbnails.High != nil {
-				video.ThumbnailURL = item.Snippet.Thumbnails.High.Url
-			} else if item.Snippet.Thumbnails.Medium != nil {
-				video.ThumbnailURL = item.Snippet.Thumbnails.Medium.Url
 			}
 
 			if publishedAt, err := time.Parse(time.RFC3339, item.Snippet.PublishedAt); err == nil {

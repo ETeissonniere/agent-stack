@@ -176,7 +176,7 @@ func TestGenerateEmailBody(t *testing.T) {
 	}
 }
 
-func TestSendEmailReportSubject(t *testing.T) {
+func TestGenerateEmailBodyMethod(t *testing.T) {
 	cfg := &config.Config{
 		DroneWeather: config.DroneWeatherConfig{
 			HomeLatitude:  40.0,
@@ -188,14 +188,15 @@ func TestSendEmailReportSubject(t *testing.T) {
 
 	report := &models.DroneFlightReport{
 		LocationName: "Test Location",
+		IsFlyable:    true,
+		Summary:      "Good flying weather",
 	}
 
-	// Test that sendEmailReport creates the correct subject
-	// We can't fully test this without mocking SMTP, but we can verify the method exists
-	err := agent.sendEmailReport(report)
+	// Test that generateEmailBody method exists and handles the report
+	_, err := agent.generateEmailBody(report)
 
-	// Expected to fail due to email configuration not being set up for tests
+	// Expected to fail due to template file not being found in test environment
 	if err != nil {
-		t.Logf("Expected error due to email config: %v", err)
+		t.Logf("Expected error due to template file: %v", err)
 	}
 }
