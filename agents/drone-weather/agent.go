@@ -3,9 +3,11 @@ package droneweather
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
 	"fmt"
 	"html/template"
 	"log"
+	"net"
 	"net/smtp"
 	"os"
 	"time"
@@ -177,7 +179,7 @@ func (d *DroneWeatherAgent) RunOnce(ctx context.Context, events *scheduler.Agent
 
 // sendEmailReport sends a drone weather report via email
 func (d *DroneWeatherAgent) sendEmailReport(report *models.DroneFlightReport) error {
-	subject := fmt.Sprintf("✈️ Good Day for Drone Flying in %s", report.LocationName)
+	subject := fmt.Sprintf("Good Day for Drone Flying in %s", report.LocationName)
 
 	body, err := d.generateEmailBody(report)
 	if err != nil {
@@ -187,21 +189,75 @@ func (d *DroneWeatherAgent) sendEmailReport(report *models.DroneFlightReport) er
 	return d.sendViaSMTP(subject, body)
 }
 
-// sendViaSMTP sends email using SMTP configuration
+// sendViaSMTP sends email using SMTP configuration with TLS support
 func (d *DroneWeatherAgent) sendViaSMTP(subject, body string) error {
-	auth := smtp.PlainAuth("", d.config.Email.Username, d.config.Email.Password, d.config.Email.SMTPServer)
+	// Create TLS config
+	tlsConfig := &tls.Config{
+		ServerName: d.config.Email.SMTPServer,
+	}
 
-	to := []string{d.config.Email.ToEmail}
-	msg := []byte(fmt.Sprintf(`To: %s
+	// Connect to server
+	addr := fmt.Sprintf("%s:%d", d.config.Email.SMTPServer, d.config.Email.SMTPPort)
+	conn, err := net.Dial("tcp", addr)
+	if err != nil {
+		return fmt.Errorf("failed to connect to SMTP server: %w", err)
+	}
+	defer conn.Close()
+
+	// Create SMTP client
+	client, err := smtp.NewClient(conn, d.config.Email.SMTPServer)
+	if err != nil {
+		return fmt.Errorf("failed to create SMTP client: %w", err)
+	}
+	defer client.Quit()
+
+	// Start TLS
+	if err = client.StartTLS(tlsConfig); err != nil {
+		return fmt.Errorf("failed to start TLS: %w", err)
+	}
+
+	// Check server capabilities
+	ext, _ := client.Extension("SMTPUTF8")
+	log.Printf("SMTP server SMTPUTF8 support: %v", ext)
+
+	// Authenticate
+	auth := smtp.PlainAuth("", d.config.Email.Username, d.config.Email.Password, d.config.Email.SMTPServer)
+	if err = client.Auth(auth); err != nil {
+		return fmt.Errorf("failed to authenticate: %w", err)
+	}
+
+	// Set sender and recipients
+	if err = client.Mail(d.config.Email.FromEmail); err != nil {
+		return fmt.Errorf("failed to set sender: %w", err)
+	}
+
+	if err = client.Rcpt(d.config.Email.ToEmail); err != nil {
+		return fmt.Errorf("failed to set recipient: %w", err)
+	}
+
+	// Send message
+	w, err := client.Data()
+	if err != nil {
+		return fmt.Errorf("failed to get data writer: %w", err)
+	}
+
+	msg := fmt.Sprintf(`To: %s
 From: %s
 Subject: %s
 MIME-Version: 1.0
 Content-Type: text/html; charset=UTF-8
 
-%s`, d.config.Email.ToEmail, d.config.Email.FromEmail, subject, body))
+%s`, d.config.Email.ToEmail, d.config.Email.FromEmail, subject, body)
 
-	addr := fmt.Sprintf("%s:%d", d.config.Email.SMTPServer, d.config.Email.SMTPPort)
-	return smtp.SendMail(addr, auth, d.config.Email.FromEmail, to, msg)
+	if _, err = w.Write([]byte(msg)); err != nil {
+		return fmt.Errorf("failed to write message: %w", err)
+	}
+
+	if err = w.Close(); err != nil {
+		return fmt.Errorf("failed to close message: %w", err)
+	}
+
+	return nil
 }
 
 // generateEmailBody creates HTML email content for drone weather report
