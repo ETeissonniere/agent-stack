@@ -25,11 +25,11 @@ type DroneMetrics struct {
 // GetSummary implements the scheduler.Metrics interface
 func (m DroneMetrics) GetSummary() string {
 	if m.IsFlyable && m.EmailSent {
-		return "good flying conditions detected, email sent"
+		return "good weather conditions detected, email sent with TFR info"
 	} else if m.IsFlyable {
-		return "good flying conditions detected, no email sent"
+		return "good weather conditions detected, no email sent"
 	} else {
-		return "poor flying conditions, no email sent"
+		return "poor weather conditions, no email sent"
 	}
 }
 
@@ -115,13 +115,13 @@ func (d *DroneWeatherAgent) RunOnce(ctx context.Context, events *scheduler.Agent
 		}
 		log.Printf("Warning: Failed to check TFRs: %v", err)
 
-		// Create a safe default TFR check that assumes TFRs might be active
+		// Create a default TFR check when API fails
 		tfrCheck = &models.TFRCheck{
-			HasActiveTFRs: true, // Assume TFRs present when check fails (safe default)
+			HasActiveTFRs: true, // Mark as having TFRs when check fails (informational warning)
 			ActiveTFRs:    []*models.TFR{},
 			CheckRadius:   d.config.DroneWeather.SearchRadiusMiles,
 			CheckTime:     time.Now(),
-			Summary:       "TFR check failed - assuming restrictions present for safety",
+			Summary:       "TFR check failed - verify airspace restrictions manually before flying",
 		}
 	} else {
 		metrics.TFRsChecked = true
@@ -129,11 +129,12 @@ func (d *DroneWeatherAgent) RunOnce(ctx context.Context, events *scheduler.Agent
 
 	log.Printf("TFR check: %s", tfrCheck.Summary)
 
-	// Determine if flying conditions are good
-	isFlyable := weatherAnalysis.IsFlyable && !tfrCheck.HasActiveTFRs
+	// Determine if flying conditions are good based on weather only
+	// TFRs are informational - pilots can still fly outside restricted areas
+	isFlyable := weatherAnalysis.IsFlyable
 	metrics.IsFlyable = isFlyable
 
-	// Only send email if conditions are good for flying
+	// Send email if weather conditions are good (TFRs are shown as informational)
 	if isFlyable {
 		log.Println("Conditions are good for flying - sending email notification...")
 
@@ -156,14 +157,9 @@ func (d *DroneWeatherAgent) RunOnce(ctx context.Context, events *scheduler.Agent
 	} else {
 		log.Println("Conditions not suitable for flying - no email sent")
 
-		// Log reasons why not flyable
-		if !weatherAnalysis.IsFlyable {
-			for _, reason := range weatherAnalysis.Reasons {
-				log.Printf("Weather issue: %s", reason)
-			}
-		}
-		if tfrCheck.HasActiveTFRs {
-			log.Printf("TFR issue: %s", tfrCheck.Summary)
+		// Log reasons why not flyable (weather only)
+		for _, reason := range weatherAnalysis.Reasons {
+			log.Printf("Weather issue: %s", reason)
 		}
 	}
 
@@ -268,20 +264,21 @@ func (d *DroneWeatherAgent) generateEmailBody(report *models.DroneFlightReport) 
     </div>
 
     <div class="tfr">
-        <h3>🚫 Airspace Status</h3>
+        <h3>📡 Airspace Information</h3>
         <p><strong>TFR Check:</strong> {{.TFRCheck.Summary}}</p>
         <p><strong>Search Radius:</strong> {{.TFRCheck.CheckRadius}} miles</p>
         {{if .TFRCheck.HasActiveTFRs}}
             <div class="warning">
-                <p><strong>⚠️ Active Restrictions Found:</strong></p>
+                <p><strong>ℹ️ Active Restrictions in Area:</strong></p>
                 <ul>
                 {{range .TFRCheck.ActiveTFRs}}
-                    <li>{{.Name}} ({{.Type}}): {{.Reason}}</li>
+                    <li><strong>{{.Name}}</strong> ({{.Type}}): {{.Reason}}</li>
                 {{end}}
                 </ul>
+                <p style="margin-top: 10px;"><em>Note: You may still fly outside the restricted areas. Always check NOTAMs and exact TFR boundaries before flying.</em></p>
             </div>
         {{else}}
-            <p class="good">✅ No active flight restrictions in the area</p>
+            <p class="good">✅ No active flight restrictions in the search area</p>
         {{end}}
     </div>
 

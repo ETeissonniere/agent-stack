@@ -61,9 +61,9 @@ func (t *TFRClient) CheckTFRs(ctx context.Context, lat, lon float64) (*models.TF
 	}
 
 	if len(activeTFRs) == 0 {
-		check.Summary = fmt.Sprintf("None active within %d miles", t.config.SearchRadiusMiles)
+		check.Summary = fmt.Sprintf("No restrictions found within %d miles - clear to fly", t.config.SearchRadiusMiles)
 	} else {
-		check.Summary = fmt.Sprintf("%d active TFR(s) within %d miles", len(activeTFRs), t.config.SearchRadiusMiles)
+		check.Summary = fmt.Sprintf("%d restriction(s) found within %d miles - check locations before flying", len(activeTFRs), t.config.SearchRadiusMiles)
 	}
 
 	return check, nil
