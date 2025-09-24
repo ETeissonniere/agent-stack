@@ -150,7 +150,6 @@ func TestGenerateEmailBody(t *testing.T) {
 			IsFlyable:       true,
 			AvgWindSpeedKmh: 14.5,
 			AvgWindGustsKmh: 18.2,
-			BestWindow:      "9 AM - 4 PM",
 			WindForecast:    "Light winds, good conditions",
 		},
 		TFRCheck: &models.TFRCheck{

@@ -126,7 +126,6 @@ func (w *WeatherClient) AnalyzeWeatherConditions(data *models.WeatherData) *mode
 		Data:         data,
 		IsFlyable:    true,
 		Reasons:      []string{},
-		BestWindow:   "9 AM - 4 PM",                         // Default flying window
 		WindForecast: "Light and stable through afternoon",  // Simplified forecast
 	}
 

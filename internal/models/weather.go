@@ -30,6 +30,5 @@ type WeatherAnalysis struct {
 	Reasons         []string     `json:"reasons"`
 	AvgWindSpeedKmh float64      `json:"avg_wind_speed_kmh"` // Average wind speed over 24h forecast
 	AvgWindGustsKmh float64      `json:"avg_wind_gusts_kmh"` // Average wind gusts over 24h forecast
-	BestWindow      string       `json:"best_window"`        // e.g., "9 AM - 4 PM"
 	WindForecast    string       `json:"wind_forecast"`      // e.g., "Light and stable"
 }
