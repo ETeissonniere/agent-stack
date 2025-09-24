@@ -2,7 +2,14 @@
   "permissions": {
     "allow": [
       "Bash(go test:*)",
-      "Bash(go build:*)"
+      "Bash(go build:*)",
+      "Bash(gh issue list:*)",
+      "Bash(gh issue view:*)",
+      "WebSearch",
+      "Bash(gh issue close:*)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:tfr.faa.gov)",
+      "Bash(go get:*)"
     ],
     "deny": [],
     "ask": []
