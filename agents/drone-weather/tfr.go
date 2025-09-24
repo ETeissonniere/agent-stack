@@ -94,12 +94,6 @@ func (t *TFRClient) fetchFromEndpoint(ctx context.Context, endpoint string) ([]*
 		return nil, fmt.Errorf("HTTP %d", resp.StatusCode)
 	}
 
-	// Parse based on content type
-	contentType := resp.Header.Get("Content-Type")
-	if strings.Contains(contentType, "application/json") {
-		return t.parseJSONTFRs(resp.Body)
-	}
-
 	// Default to HTML parsing
 	return t.parseHTMLTFRs(resp.Body)
 }
@@ -167,12 +161,6 @@ func (t *TFRClient) parseHTMLTFRs(body io.Reader) ([]*models.TFR, error) {
 	})
 
 	return tfrs, nil
-}
-
-// parseJSONTFRs parses TFR data from JSON content (not implemented)
-func (t *TFRClient) parseJSONTFRs(body io.Reader) ([]*models.TFR, error) {
-	log.Printf("JSON TFR parsing not implemented, FAA primarily uses HTML")
-	return []*models.TFR{}, nil
 }
 
 // parseSimpleCoordinates attempts to extract basic coordinate and radius info from text
