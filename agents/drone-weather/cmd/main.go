@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"agent-stack/agents/youtube-curator"
+	droneweather "agent-stack/agents/drone-weather"
 	"agent-stack/shared/config"
 	"agent-stack/shared/scheduler"
 )
@@ -19,17 +19,17 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
-	// Validate YouTube Curator specific configuration
-	if err := cfg.ValidateYouTubeCurator(); err != nil {
-		log.Fatalf("Failed to validate YouTube Curator configuration: %v", err)
+	// Validate Drone Weather specific configuration
+	if err := cfg.ValidateDroneWeather(); err != nil {
+		log.Fatalf("Failed to validate Drone Weather configuration: %v", err)
 	}
 
 	// Create context that responds to signals
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
 
-	// Create YouTube agent and scheduler
-	agent := youtubecurator.NewYouTubeAgent(cfg)
+	// Create Drone Weather agent and scheduler
+	agent := droneweather.NewDroneWeatherAgent(cfg)
 	s := scheduler.New(cfg, agent)
 
 	if len(os.Args) > 1 && os.Args[1] == "--once" {
@@ -41,19 +41,10 @@ func main() {
 		if err := s.RunOnce(ctx); err != nil {
 			log.Fatalf("Failed to run: %v", err)
 		}
-
-		// Stop token refresher when running once
-		agent.StopTokenRefresher()
 		return
 	}
 
 	fmt.Println("Starting scheduler...")
-
-	// Ensure cleanup on exit
-	defer func() {
-		log.Println("Shutting down...")
-		agent.StopTokenRefresher()
-	}()
 
 	if err := s.Start(ctx); err != nil {
 		log.Fatalf("Scheduler failed: %v", err)

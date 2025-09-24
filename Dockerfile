@@ -15,8 +15,9 @@ RUN go mod download
 # Copy source code
 COPY . .
 
-# Build the application
+# Build both applications
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o youtube-curator ./agents/youtube-curator/cmd
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o drone-weather ./agents/drone-weather/cmd
 
 # Runtime stage
 FROM alpine:latest
@@ -26,9 +27,10 @@ RUN apk --no-cache add ca-certificates curl
 
 WORKDIR /app
 
-# Copy the binary from builder stage and set permissions
+# Copy both binaries from builder stage and set permissions
 COPY --from=builder /app/youtube-curator .
-RUN chmod +x youtube-curator
+COPY --from=builder /app/drone-weather .
+RUN chmod +x youtube-curator drone-weather
 
 # Expose health check port (default 8080)
 ENV HEALTHCHECK_PORT=8080

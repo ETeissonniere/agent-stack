@@ -27,7 +27,7 @@ func NewAnalyzer(cfg *config.Config) (*Analyzer, error) {
 
 	// Configure client with API key
 	client, err := genai.NewClient(ctx, &genai.ClientConfig{
-		APIKey: cfg.AI.GeminiAPIKey,
+		APIKey: cfg.YouTubeCurator.AI.GeminiAPIKey,
 	})
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Gemini client: %w", err)
@@ -35,10 +35,10 @@ func NewAnalyzer(cfg *config.Config) (*Analyzer, error) {
 
 	a := &Analyzer{
 		client:            client,
-		model:             cfg.AI.Model,
-		guidelines:        cfg.Guidelines.Criteria,
-		longVideoMinutes:  cfg.Video.LongMinutes,
-		shortVideoMinutes: cfg.Video.ShortMinutes,
+		model:             cfg.YouTubeCurator.AI.Model,
+		guidelines:        cfg.YouTubeCurator.Guidelines.Criteria,
+		longVideoMinutes:  cfg.YouTubeCurator.Video.LongMinutes,
+		shortVideoMinutes: cfg.YouTubeCurator.Video.ShortMinutes,
 	}
 
 	return a, nil
