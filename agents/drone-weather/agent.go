@@ -53,6 +53,11 @@ func (d *DroneWeatherAgent) Name() string {
 	return "Drone Weather Agent"
 }
 
+func (d *DroneWeatherAgent) GetSchedule() string {
+	return d.config.DroneWeather.Schedule
+}
+
+
 func (d *DroneWeatherAgent) Initialize() error {
 	log.Printf("Initializing %s...", d.Name())
 

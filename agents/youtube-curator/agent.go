@@ -51,12 +51,16 @@ func NewYouTubeAgent(cfg *config.Config) *YouTubeAgent {
 func (y *YouTubeAgent) Name() string {
 	return "YouTube Curator"
 }
+func (y *YouTubeAgent) GetSchedule() string {
+	return y.config.YouTubeCurator.Schedule
+}
+
 
 func (y *YouTubeAgent) Initialize() error {
 	log.Printf("Initializing %s...", y.Name())
 
 	if y.youtubeClient == nil {
-		client, err := youtube.NewClient(&y.config.YouTube)
+		client, err := youtube.NewClient(&y.config.YouTubeCurator.YouTube)
 		if err != nil {
 			return fmt.Errorf("failed to create YouTube client: %w", err)
 		}
@@ -64,7 +68,7 @@ func (y *YouTubeAgent) Initialize() error {
 		log.Println("YouTube client initialized")
 
 		// Start background token refresher with configured interval
-		refreshInterval := time.Duration(y.config.YouTube.TokenRefreshMinutes) * time.Minute
+		refreshInterval := time.Duration(y.config.YouTubeCurator.YouTube.TokenRefreshMinutes) * time.Minute
 		y.startTokenRefresher(refreshInterval)
 	}
 

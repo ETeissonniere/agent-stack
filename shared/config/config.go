@@ -10,14 +10,18 @@ import (
 )
 
 type Config struct {
-	YouTube      YouTubeConfig      `yaml:"youtube"`
-	AI           AIConfig           `yaml:"ai"`
-	Email        EmailConfig        `yaml:"email"`
-	Guidelines   GuidelinesConfig   `yaml:"guidelines"`
-	Schedule     string             `yaml:"schedule"`
-	Monitoring   MonitoringConfig   `yaml:"monitoring"`
-	Video        VideoConfig        `yaml:"video"`
-	DroneWeather DroneWeatherConfig `yaml:"drone_weather"`
+	YouTubeCurator YouTubeCuratorConfig `yaml:"youtube_curator"`
+	DroneWeather   DroneWeatherConfig   `yaml:"drone_weather"`
+	Email          EmailConfig          `yaml:"email"`
+	Monitoring     MonitoringConfig     `yaml:"monitoring"`
+}
+
+type YouTubeCuratorConfig struct {
+	YouTube    YouTubeConfig    `yaml:"youtube"`
+	AI         AIConfig         `yaml:"ai"`
+	Video      VideoConfig      `yaml:"video"`
+	Guidelines GuidelinesConfig `yaml:"guidelines"`
+	Schedule   string           `yaml:"schedule"`
 }
 
 type YouTubeConfig struct {
@@ -66,6 +70,7 @@ type DroneWeatherConfig struct {
 	MaxTempC           float64 `yaml:"max_temp_c"`
 	WeatherURL         string  `yaml:"weather_url"`
 	TFRURL             string  `yaml:"tfr_url"`
+	Schedule           string  `yaml:"schedule"`
 }
 
 func Load() (*Config, error) {
@@ -86,20 +91,20 @@ func Load() (*Config, error) {
 		return nil, fmt.Errorf("failed to parse config file %s: %w", configFile, err)
 	}
 
-	if cfg.YouTube.ClientID == "" {
-		cfg.YouTube.ClientID = os.Getenv("GOOGLE_CLIENT_ID")
+	if cfg.YouTubeCurator.YouTube.ClientID == "" {
+		cfg.YouTubeCurator.YouTube.ClientID = os.Getenv("GOOGLE_CLIENT_ID")
 	}
-	if cfg.YouTube.ClientSecret == "" {
-		cfg.YouTube.ClientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
+	if cfg.YouTubeCurator.YouTube.ClientSecret == "" {
+		cfg.YouTubeCurator.YouTube.ClientSecret = os.Getenv("GOOGLE_CLIENT_SECRET")
 	}
-	if cfg.YouTube.TokenFile == "" {
-		cfg.YouTube.TokenFile = "data/youtube_token.json"
+	if cfg.YouTubeCurator.YouTube.TokenFile == "" {
+		cfg.YouTubeCurator.YouTube.TokenFile = "data/youtube_token.json"
 	}
-	if cfg.YouTube.TokenRefreshMinutes == 0 {
-		cfg.YouTube.TokenRefreshMinutes = 30 // Default to 30 minutes
+	if cfg.YouTubeCurator.YouTube.TokenRefreshMinutes == 0 {
+		cfg.YouTubeCurator.YouTube.TokenRefreshMinutes = 30 // Default to 30 minutes
 	}
-	if cfg.AI.GeminiAPIKey == "" {
-		cfg.AI.GeminiAPIKey = os.Getenv("GEMINI_API_KEY")
+	if cfg.YouTubeCurator.AI.GeminiAPIKey == "" {
+		cfg.YouTubeCurator.AI.GeminiAPIKey = os.Getenv("GEMINI_API_KEY")
 	}
 	if cfg.Email.Username == "" {
 		cfg.Email.Username = os.Getenv("EMAIL_USERNAME")
@@ -110,18 +115,22 @@ func Load() (*Config, error) {
 
 	// No external monitoring services - self-contained only
 
-	if cfg.AI.Model == "" {
-		cfg.AI.Model = "gemini-2.5-flash"
+	if cfg.YouTubeCurator.AI.Model == "" {
+		cfg.YouTubeCurator.AI.Model = "gemini-2.5-flash"
 	}
-	if cfg.Video.LongMinutes == 0 {
-		cfg.Video.LongMinutes = 60
+	if cfg.YouTubeCurator.Video.LongMinutes == 0 {
+		cfg.YouTubeCurator.Video.LongMinutes = 60
 	}
-	if cfg.Video.ShortMinutes == 0 {
-		cfg.Video.ShortMinutes = 1
+	if cfg.YouTubeCurator.Video.ShortMinutes == 0 {
+		cfg.YouTubeCurator.Video.ShortMinutes = 1
 	}
-	if cfg.Schedule == "" {
+	if cfg.YouTubeCurator.Schedule == "" {
 		// 6-field cron with seconds: daily at 09:00:00
-		cfg.Schedule = "0 0 9 * * *"
+		cfg.YouTubeCurator.Schedule = "0 0 9 * * *"
+	}
+	if cfg.DroneWeather.Schedule == "" {
+		// 6-field cron with seconds: daily at 09:00:00
+		cfg.DroneWeather.Schedule = "0 0 9 * * *"
 	}
 
 	if cfg.Monitoring.HealthPort == 0 {
@@ -170,17 +179,28 @@ func Load() (*Config, error) {
 }
 
 func (c *Config) validate() error {
-	if c.YouTube.ClientID == "" {
-		return fmt.Errorf("YouTube client ID is required (set GOOGLE_CLIENT_ID or youtube.client_id)")
-	}
-	if c.AI.GeminiAPIKey == "" {
-		return fmt.Errorf("Gemini API key is required (set GEMINI_API_KEY or ai.gemini_api_key)")
-	}
 	if c.Email.Username == "" {
 		return fmt.Errorf("Email username is required (set EMAIL_USERNAME or email.username)")
 	}
 	if c.Email.Password == "" {
 		return fmt.Errorf("Email password is required (set EMAIL_PASSWORD or email.password)")
 	}
+	return nil
+}
+
+// ValidateYouTubeCurator validates YouTube Curator specific configuration
+func (c *Config) ValidateYouTubeCurator() error {
+	if c.YouTubeCurator.YouTube.ClientID == "" {
+		return fmt.Errorf("YouTube client ID is required (set GOOGLE_CLIENT_ID or youtube_curator.youtube.client_id)")
+	}
+	if c.YouTubeCurator.AI.GeminiAPIKey == "" {
+		return fmt.Errorf("Gemini API key is required (set GEMINI_API_KEY or youtube_curator.ai.gemini_api_key)")
+	}
+	return nil
+}
+
+// ValidateDroneWeather validates Drone Weather specific configuration
+func (c *Config) ValidateDroneWeather() error {
+	// No specific validation required for drone weather currently
 	return nil
 }

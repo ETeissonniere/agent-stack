@@ -66,8 +66,10 @@ func TestYouTubeMetricsGetSummary(t *testing.T) {
 
 func TestTokenRefresherLifecycle(t *testing.T) {
 	cfg := &config.Config{
-		YouTube: config.YouTubeConfig{
-			TokenRefreshMinutes: 1, // 1 minute for testing
+		YouTubeCurator: config.YouTubeCuratorConfig{
+			YouTube: config.YouTubeConfig{
+				TokenRefreshMinutes: 1, // 1 minute for testing
+			},
 		},
 	}
 
@@ -151,15 +153,18 @@ func TestAgentInitialization(t *testing.T) {
 	// Note: This is a basic test since we can't fully initialize without real credentials
 
 	cfg := &config.Config{
-		YouTube: config.YouTubeConfig{
-			ClientID:            "test-client",
-			ClientSecret:        "test-secret",
-			TokenFile:           "test-token.json",
-			TokenRefreshMinutes: 30,
-		},
-		AI: config.AIConfig{
-			GeminiAPIKey: "test-api-key",
-			Model:        "gemini-2.5-flash",
+		YouTubeCurator: config.YouTubeCuratorConfig{
+			YouTube: config.YouTubeConfig{
+				ClientID:            "test-client",
+				ClientSecret:        "test-secret",
+				TokenFile:           "test-token.json",
+				TokenRefreshMinutes: 30,
+			},
+			AI: config.AIConfig{
+				GeminiAPIKey: "test-api-key",
+				Model:        "gemini-2.5-flash",
+			},
+			Schedule: "0 0 9 * * *",
 		},
 		Email: config.EmailConfig{
 			SMTPServer: "smtp.test.com",
@@ -220,8 +225,10 @@ func TestBackgroundRefresherTiming(t *testing.T) {
 
 func TestConcurrentTokenRefresh(t *testing.T) {
 	cfg := &config.Config{
-		YouTube: config.YouTubeConfig{
-			TokenRefreshMinutes: 1,
+		YouTubeCurator: config.YouTubeCuratorConfig{
+			YouTube: config.YouTubeConfig{
+				TokenRefreshMinutes: 1,
+			},
 		},
 	}
 

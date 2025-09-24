@@ -19,6 +19,12 @@ func main() {
 		log.Fatalf("Failed to load configuration: %v", err)
 	}
 
+	// Validate YouTube Curator specific configuration
+	if err := cfg.ValidateYouTubeCurator(); err != nil {
+		log.Fatalf("Failed to validate YouTube Curator configuration: %v", err)
+	}
+
+
 	// Create context that responds to signals
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()

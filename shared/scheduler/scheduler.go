@@ -30,6 +30,7 @@ type Agent interface {
 	Name() string
 	RunOnce(ctx context.Context, events *AgentEvents) error
 	Initialize() error
+	GetSchedule() string
 }
 
 // Scheduler manages the execution of agents on a schedule
@@ -61,7 +62,8 @@ func (s *Scheduler) Start(ctx context.Context) error {
 	healthServer := monitoring.NewHealthServer(s.monitor, fmt.Sprintf("%d", s.config.Monitoring.HealthPort))
 	healthServer.Start()
 
-	_, err := s.cron.AddFunc(s.config.Schedule, func() {
+	schedule := s.agent.GetSchedule()
+	_, err := s.cron.AddFunc(schedule, func() {
 		if err := s.RunOnce(ctx); err != nil {
 			log.Printf("Error running scheduled job for %s: %v", s.agent.Name(), err)
 		}
@@ -70,7 +72,7 @@ func (s *Scheduler) Start(ctx context.Context) error {
 		return fmt.Errorf("failed to add cron job: %w", err)
 	}
 
-	log.Printf("Scheduler started for %s with schedule: %s", s.agent.Name(), s.config.Schedule)
+	log.Printf("Scheduler started for %s with schedule: %s", s.agent.Name(), schedule)
 	s.cron.Start()
 
 	// Keep the scheduler running indefinitely until context is cancelled
