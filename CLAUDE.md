@@ -1,37 +1,89 @@
-# YouTube Curator - Technical Documentation
+# Agent Stack - Technical Documentation
 
-A Go application that analyzes YouTube subscription videos using AI and sends curated email digests.
+A Go application that hosts multiple intelligent automation agents for daily tasks and notifications.
 
 ## Architecture
 
-### Components
+### Shared Components
 
-- **YouTube Client** (`agents/youtube-curator/youtube/`): OAuth 2.0 authentication and video fetching
-- **AI Analyzer** (`shared/ai/`): Gemini 2.5 Flash video analysis with relevance scoring
-- **Email Sender** (`shared/email/`): SMTP-based HTML email reports  
-- **Scheduler** (`shared/scheduler/`): Cron-based daily execution with health monitoring
+- **Scheduler** (`shared/scheduler/`): Cron-based execution with health monitoring
 - **Configuration** (`shared/config/`): YAML config with environment variable overrides
+- **Email Sender** (`shared/email/`): SMTP-based HTML email reports
+- **Monitoring** (`shared/monitoring/`): Health check endpoints and status tracking
 
-### Data Models
+### YouTube Curator Agent (`agents/youtube-curator/`)
 
+- **YouTube Client** (`youtube/`): OAuth 2.0 authentication and video fetching
+- **AI Analyzer** (`shared/ai/`): Gemini 2.5 Flash video analysis with relevance scoring
+- **Agent** (`agent.go`): Main agent implementation following scheduler interface
+
+### Drone Weather Agent (`agents/drone-weather/`)
+
+- **Weather Client** (`weather.go`): Open-Meteo API integration for weather data
+- **TFR Client** (`tfr.go`): FAA Temporary Flight Restrictions monitoring
+- **Agent** (`agent.go`): Main agent implementation with email notifications
+- **Email Template** (`email_template.html`): HTML template for flight condition reports
+
+### Data Models (`internal/models/`)
+
+**YouTube Curator:**
 - **Video**: YouTube video metadata
 - **Analysis**: AI analysis with relevance score (1-10)
 - **EmailReport**: Formatted email digest
+
+**Drone Weather:**
+- **WeatherData**: Weather conditions from Open-Meteo API
+- **WeatherAnalysis**: Analyzed flying conditions with safety recommendations
+- **TFR**: Temporary Flight Restriction data from FAA
+- **TFRCheck**: TFR search results around home location
+- **DroneFlightReport**: Complete flight conditions report for email
 
 ## Configuration
 
 Copy `config.example.yaml` to `config.yaml` and configure with your settings.
 
 Required environment variables:
-- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: YouTube OAuth credentials  
-- `GEMINI_API_KEY`: Google AI Studio API key
-- `EMAIL_USERNAME` / `EMAIL_PASSWORD`: SMTP credentials
+- `GOOGLE_CLIENT_ID` / `GOOGLE_CLIENT_SECRET`: YouTube OAuth credentials (YouTube Curator only)
+- `GEMINI_API_KEY`: Google AI Studio API key (YouTube Curator only)
+- `EMAIL_USERNAME` / `EMAIL_PASSWORD`: SMTP credentials (required for both agents)
 
 Optional environment variables:
 - `CONFIG_FILE`: Custom config file path (default: `./config.yaml`)
 - `HEALTHCHECK_PORT`: Health monitoring port for both app and Docker (default: 8080)
 
 Configuration is managed in `config.yaml` with environment variable overrides.
+
+### Drone Weather Agent Configuration
+
+The Drone Weather Agent requires configuration of your home location and safety thresholds:
+
+```yaml
+drone_weather:
+  # Your home flying location
+  home_latitude: 37.7749
+  home_longitude: -122.4194
+  home_name: "San Francisco Bay Area"
+
+  # TFR search radius around home location
+  search_radius_miles: 25
+
+  # Weather safety thresholds
+  max_wind_speed_mph: 15
+  min_visibility_miles: 3
+  max_precipitation_mm: 0
+  min_temp_c: 4.4   # 40°F
+  max_temp_c: 35.0  # 95°F
+
+  # API endpoints (defaults provided)
+  weather_url: "https://api.open-meteo.com/v1/forecast"
+  tfr_url: "https://tfr.faa.gov/tfr2/list.html"
+```
+
+**Key Configuration Parameters:**
+- **Location Settings**: Configure `home_latitude`, `home_longitude`, and `home_name` for your primary flying location
+- **Safety Thresholds**: Adjust weather limits based on your drone capabilities and skill level
+- **TFR Monitoring**: Set `search_radius_miles` to define how far to check for temporary flight restrictions
+- **API Endpoints**: Use default endpoints or customize for different weather/TFR data sources
 
 ### Video Filtering Configuration
 
@@ -86,30 +138,58 @@ The application uses a 6-field CRON format (with seconds) powered by `robfig/cro
 
 ## API Setup
 
-### YouTube OAuth
+### YouTube Curator Agent
+
+#### YouTube OAuth
 1. Go to [Google Cloud Console](https://console.cloud.google.com/)
 2. Create project → Enable YouTube Data API v3
 3. Create OAuth 2.0 credentials of type `TVs and Limited Input devices`
 4. Set `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` environment variables (some device clients do not issue a secret; leave it blank if not provided)
 
-### Gemini AI
-1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey) 
+#### Gemini AI
+1. Go to [Google AI Studio](https://makersuite.google.com/app/apikey)
 2. Create API key → Set `GEMINI_API_KEY` environment variable
 
 First run will prompt for OAuth authorization via browser flow.
 
+### Drone Weather Agent
+
+#### Open-Meteo Weather API
+- **Free API**: No API key required for basic usage
+- **Endpoint**: `https://api.open-meteo.com/v1/forecast`
+- **Features**: Current weather, hourly forecasts, multiple weather variables
+- **Rate Limits**: 10,000 API calls per day (free tier)
+
+#### FAA TFR Data
+- **Public Data**: No API key required
+- **Endpoint**: `https://tfr.faa.gov/tfr2/list.html`
+- **Data Source**: Official FAA Temporary Flight Restrictions
+- **Update Frequency**: Real-time updates from FAA systems
+- **Coverage**: United States airspace only
+
+The Drone Weather Agent uses public APIs that don't require authentication, making setup simpler than the YouTube Curator.
+
 ## Development
 
 ### Local Development
+
+#### YouTube Curator Agent
 ```bash
 go mod download
 go run agents/youtube-curator/cmd/main.go --once
 ```
 
+#### Drone Weather Agent
+```bash
+go mod download
+go run cmd/main.go --agent=drone-weather --once
+```
+
 ### Docker
 ```bash
 docker-compose up -d
-# Test with: docker run --env-file .env agent-stack ./youtube-curator --once
+# Test YouTube Curator: docker run --env-file .env agent-stack ./youtube-curator --once
+# Test Drone Weather: docker run --env-file .env agent-stack ./drone-weather --once
 ```
 
 ## Monitoring
@@ -151,3 +231,42 @@ Notes:
 - `OnCriticalFailure`: Called for unrecoverable errors that require stopping execution.
 - The scheduler handles all monitoring internally, agents provide domain-specific metrics via the `Metrics` interface.
 - Scheduler prevents overlapping runs via `cron.SkipIfStillRunning`.
+
+## Drone Weather Agent Implementation
+
+### Weather Analysis Process
+
+1. **Data Collection**: Fetches current weather and 24-hour forecast from Open-Meteo API
+2. **Safety Analysis**: Compares weather conditions against configured thresholds
+3. **TFR Checking**: Searches for active Temporary Flight Restrictions within configured radius
+4. **Decision Logic**: Determines if conditions are safe for drone flying based on weather only
+5. **Notifications**: Sends email alerts with detailed reports when conditions are favorable
+
+### Weather Monitoring Features
+
+- **Real-time Data**: Current weather conditions with timezone-aware timestamps
+- **Hourly Forecasts**: Wind speed and gust predictions for next 24 hours
+- **Visual Charts**: QuickChart.io integration for wind speed visualization
+- **Multi-unit Support**: Displays both metric and imperial units for temperature and wind
+- **Comprehensive Checks**: Wind speed, visibility, precipitation, and temperature analysis
+
+### TFR Integration
+
+- **FAA Data Source**: Parses official FAA Temporary Flight Restriction data
+- **Geographical Filtering**: Identifies TFRs within configurable radius of home location
+- **Informational Only**: TFRs are shown as warnings, not blocking factors for good weather notifications
+- **Fallback Handling**: Continues operation even if TFR data is unavailable
+
+### Email Notifications
+
+- **Conditional Sending**: Only sends emails when weather conditions are good for flying
+- **Rich HTML Format**: Styled email template with weather details and wind charts
+- **Comprehensive Reports**: Includes current conditions, forecasts, TFR status, and safety recommendations
+- **SMTP Flexibility**: Supports various email providers with TLS encryption
+
+### Safety Features
+
+- **Conservative Defaults**: Safe thresholds for beginner/intermediate pilots
+- **Configurable Limits**: Easily adjust weather thresholds based on experience and equipment
+- **Multiple Factors**: Considers wind, visibility, precipitation, and temperature simultaneously
+- **Timezone Handling**: Properly handles timezone conversion for accurate time displays

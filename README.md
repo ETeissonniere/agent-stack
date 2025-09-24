@@ -1,6 +1,6 @@
 # Agent Stack
 
-A collection of intelligent automation agents. The first agent is YouTube Curator, which uses AI to curate and deliver personalized video recommendations via email.
+A collection of intelligent automation agents that automate daily tasks and notifications.
 
 ## Agents
 
@@ -21,6 +21,25 @@ Analyzes your YouTube subscriptions using AI to find the most relevant videos wo
 **Example Email Output:**
 
 ![Email Example](images/email-example.png)
+
+### 🚁 Drone Weather Agent
+Monitors weather conditions and airspace restrictions to determine safe drone flying conditions.
+
+**Features:**
+- 🌤️ **Weather Monitoring**: Fetches real-time weather data from Open-Meteo API
+- ✈️ **TFR Checking**: Monitors FAA Temporary Flight Restrictions in your area
+- 📊 **Safety Analysis**: Analyzes wind speed, visibility, precipitation, and temperature against safe flying thresholds
+- 📈 **Wind Charts**: Generates visual wind speed forecasts using QuickChart
+- 📧 **Smart Notifications**: Sends email alerts only when conditions are good for flying
+- ⚙️ **Configurable Thresholds**: Customize weather limits based on your drone and skill level
+- 🌍 **Location-Based**: Configure for any location with latitude/longitude coordinates
+
+**Weather Criteria Monitored:**
+- Wind speed (default max: 15 mph)
+- Visibility (default min: 3 miles)
+- Precipitation (default max: 0 mm)
+- Temperature range (default: 40-95°F / 4.4-35°C)
+- Active TFRs within configurable radius (default: 25 miles)
 
 ## Features
 
@@ -169,12 +188,44 @@ video:
   short_minutes: 1
   # Fallback to metadata-only above this duration
   long_minutes: 60
+
+drone_weather:
+  # Your home flying location
+  home_latitude: 37.7749
+  home_longitude: -122.4194
+  home_name: "San Francisco Bay Area"
+
+  # TFR search radius around home location
+  search_radius_miles: 25
+
+  # Weather safety thresholds
+  max_wind_speed_mph: 15
+  min_visibility_miles: 3
+  max_precipitation_mm: 0
+  min_temp_c: 4.4   # 40°F
+  max_temp_c: 35.0  # 95°F
+
+  # API endpoints (defaults provided)
+  weather_url: "https://api.open-meteo.com/v1/forecast"
+  tfr_url: "https://tfr.faa.gov/tfr2/list.html"
 ```
 
 ### Video Settings
 
  - `short_minutes`: Minutes threshold to skip short videos (e.g., YouTube Shorts). Defaults to 1.
  - `long_minutes`: Minutes threshold to switch to metadata-only analysis for very long videos. Defaults to 60.
+
+### Drone Weather Settings
+
+Configure the drone weather agent for your location and safety preferences:
+
+ - `home_latitude`/`home_longitude`: Your primary flying location coordinates
+ - `home_name`: Descriptive name for your location (used in emails)
+ - `search_radius_miles`: Radius to check for TFRs around your location (default: 25)
+ - `max_wind_speed_mph`: Maximum safe wind speed for flying (default: 15)
+ - `min_visibility_miles`: Minimum required visibility (default: 3)
+ - `max_precipitation_mm`: Maximum precipitation allowed (default: 0)
+ - `min_temp_c`/`max_temp_c`: Safe temperature range in Celsius
 
 ### YouTube Token Management
 
@@ -341,11 +392,16 @@ For issues and questions:
 
 ```
 agent-stack/
-├── agents/                    # YouTube curator agent
-│   └── youtube-curator/       # YouTube curation agent
-│       ├── cmd/               # Agent entry point
-│       ├── youtube/           # YouTube API client
-│       └── agent.go           # Main agent implementation
+├── agents/                    # Individual agent implementations
+│   ├── youtube-curator/       # YouTube curation agent
+│   │   ├── cmd/               # Agent entry point
+│   │   ├── youtube/           # YouTube API client
+│   │   └── agent.go           # Main agent implementation
+│   └── drone-weather/         # Drone weather monitoring agent
+│       ├── weather.go         # Weather API client (Open-Meteo)
+│       ├── tfr.go             # TFR checking (FAA)
+│       ├── agent.go           # Main agent implementation
+│       └── email_template.html # Email template for flight reports
 ├── shared/                    # Shared libraries
 │   ├── config/                # Configuration management
 │   ├── monitoring/            # Health checks and monitoring
@@ -353,7 +409,7 @@ agent-stack/
 │   ├── storage/               # Persistent state management
 │   └── ai/                    # AI/LLM integrations
 ├── internal/                  # Shared data models
-│   └── models/                # Common data structures
+│   └── models/                # Common data structures (weather, TFR, etc.)
 ├── data/                      # Persistent data (OAuth tokens, video state)
 ├── docker-compose.yml         # Container orchestration
 └── config.yaml              # Application configuration
