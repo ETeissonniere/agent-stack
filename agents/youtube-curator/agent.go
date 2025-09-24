@@ -55,7 +55,6 @@ func (y *YouTubeAgent) GetSchedule() string {
 	return y.config.YouTubeCurator.Schedule
 }
 
-
 func (y *YouTubeAgent) Initialize() error {
 	log.Printf("Initializing %s...", y.Name())
 

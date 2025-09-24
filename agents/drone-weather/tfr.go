@@ -38,9 +38,9 @@ type GeoJSONFeatureCollection struct {
 }
 
 type GeoJSONFeature struct {
-	Type       string                 `json:"type"`
-	Properties GeoJSONProperties      `json:"properties"`
-	Geometry   GeoJSONGeometry        `json:"geometry"`
+	Type       string            `json:"type"`
+	Properties GeoJSONProperties `json:"properties"`
+	Geometry   GeoJSONGeometry   `json:"geometry"`
 }
 
 type GeoJSONProperties struct {
@@ -51,8 +51,8 @@ type GeoJSONProperties struct {
 }
 
 type GeoJSONGeometry struct {
-	Type        string          `json:"type"`
-	Coordinates [][][]float64   `json:"coordinates"`
+	Type        string        `json:"type"`
+	Coordinates [][][]float64 `json:"coordinates"`
 }
 
 // TFR fetching and parsing functions
@@ -121,7 +121,7 @@ func (t *TFRClient) parseGeoJSONTFRs(body io.Reader) ([]*models.TFR, error) {
 		if err != nil {
 			// For TFRs without clear date patterns (permanent restrictions), assume they're active
 			log.Printf("Using default dates for TFR %s (likely permanent): %v", tfr.ID, err)
-			tfr.StartTime = time.Now().Add(-24 * time.Hour) // Started yesterday
+			tfr.StartTime = time.Now().Add(-24 * time.Hour)    // Started yesterday
 			tfr.EndTime = time.Now().Add(365 * 24 * time.Hour) // Valid for a year
 		} else {
 			tfr.StartTime = startTime

@@ -7,7 +7,6 @@ import (
 	"agent-stack/shared/config"
 )
 
-
 // Test distance calculations
 
 func TestCalculateDistance(t *testing.T) {
@@ -87,7 +86,6 @@ func TestIsWithinSearchArea(t *testing.T) {
 		})
 	}
 }
-
 
 func TestBuildTFRCheck(t *testing.T) {
 	client := &TFRClient{config: &config.DroneWeatherConfig{SearchRadiusMiles: 25}}

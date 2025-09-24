@@ -24,7 +24,6 @@ func main() {
 		log.Fatalf("Failed to validate Drone Weather configuration: %v", err)
 	}
 
-
 	// Create context that responds to signals
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
