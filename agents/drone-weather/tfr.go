@@ -18,7 +18,6 @@ import (
 	"agent-stack/shared/config"
 )
 
-
 // TFRClient handles interactions with the FAA TFR API
 type TFRClient struct {
 	config *config.DroneWeatherConfig
@@ -275,7 +274,6 @@ func (t *TFRClient) isWithinSearchArea(homeLat, homeLon float64, tfr *models.TFR
 	// Check if circles intersect (distance between centers < sum of radii)
 	return distanceToCenter <= (searchRadiusMiles + tfrRadiusMiles)
 }
-
 
 // calculateDistance calculates the distance between two coordinates in miles
 func (t *TFRClient) calculateDistance(lat1, lon1, lat2, lon2 float64) float64 {

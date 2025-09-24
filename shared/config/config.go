@@ -10,13 +10,13 @@ import (
 )
 
 type Config struct {
-	YouTube     YouTubeConfig     `yaml:"youtube"`
-	AI          AIConfig          `yaml:"ai"`
-	Email       EmailConfig       `yaml:"email"`
-	Guidelines  GuidelinesConfig  `yaml:"guidelines"`
-	Schedule    string            `yaml:"schedule"`
-	Monitoring  MonitoringConfig  `yaml:"monitoring"`
-	Video       VideoConfig       `yaml:"video"`
+	YouTube      YouTubeConfig      `yaml:"youtube"`
+	AI           AIConfig           `yaml:"ai"`
+	Email        EmailConfig        `yaml:"email"`
+	Guidelines   GuidelinesConfig   `yaml:"guidelines"`
+	Schedule     string             `yaml:"schedule"`
+	Monitoring   MonitoringConfig   `yaml:"monitoring"`
+	Video        VideoConfig        `yaml:"video"`
 	DroneWeather DroneWeatherConfig `yaml:"drone_weather"`
 }
 
@@ -55,8 +55,8 @@ type VideoConfig struct {
 }
 
 type DroneWeatherConfig struct {
-	HomeLatitude        float64 `yaml:"home_latitude"`
-	HomeLongitude       float64 `yaml:"home_longitude"`
+	HomeLatitude       float64 `yaml:"home_latitude"`
+	HomeLongitude      float64 `yaml:"home_longitude"`
 	HomeName           string  `yaml:"home_name"`
 	SearchRadiusMiles  int     `yaml:"search_radius_miles"`
 	MaxWindSpeedKmh    int     `yaml:"max_wind_speed_kmh"`

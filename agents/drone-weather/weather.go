@@ -126,7 +126,7 @@ func (w *WeatherClient) AnalyzeWeatherConditions(data *models.WeatherData) *mode
 		Data:         data,
 		IsFlyable:    true,
 		Reasons:      []string{},
-		WindForecast: "Light and stable through afternoon",  // Simplified forecast
+		WindForecast: "Light and stable through afternoon", // Simplified forecast
 	}
 
 	// Calculate average wind values from hourly data
@@ -190,5 +190,3 @@ func (w *WeatherClient) AnalyzeWeatherConditions(data *models.WeatherData) *mode
 
 	return analysis
 }
-
-

@@ -62,25 +62,25 @@ func TestCalculateDistance(t *testing.T) {
 	client := &TFRClient{}
 
 	tests := []struct {
-		name     string
-		lat1     float64
-		lon1     float64
-		lat2     float64
-		lon2     float64
-		expected float64 // approximate distance in miles
+		name      string
+		lat1      float64
+		lon1      float64
+		lat2      float64
+		lon2      float64
+		expected  float64 // approximate distance in miles
 		tolerance float64
 	}{
 		{
-			name:      "Same point",
-			lat1:      40.7128, lon1: -74.0060,
-			lat2:      40.7128, lon2: -74.0060,
+			name: "Same point",
+			lat1: 40.7128, lon1: -74.0060,
+			lat2: 40.7128, lon2: -74.0060,
 			expected:  0,
 			tolerance: 0.1,
 		},
 		{
-			name:      "NYC to LA (approximately)",
-			lat1:      40.7128, lon1: -74.0060, // NYC
-			lat2:      34.0522, lon2: -118.2437, // LA
+			name: "NYC to LA (approximately)",
+			lat1: 40.7128, lon1: -74.0060, // NYC
+			lat2: 34.0522, lon2: -118.2437, // LA
 			expected:  2445, // ~2445 miles
 			tolerance: 50,
 		},
@@ -109,19 +109,19 @@ func TestIsWithinSearchArea(t *testing.T) {
 		{
 			name:    "TFR within search area",
 			homeLat: 40.0, homeLon: -74.0,
-			tfr:     &models.TFR{Latitude: 40.1, Longitude: -74.1, Radius: 10},
+			tfr:      &models.TFR{Latitude: 40.1, Longitude: -74.1, Radius: 10},
 			expected: true,
 		},
 		{
 			name:    "TFR outside search area",
 			homeLat: 40.0, homeLon: -74.0,
-			tfr:     &models.TFR{Latitude: 42.0, Longitude: -76.0, Radius: 5},
+			tfr:      &models.TFR{Latitude: 42.0, Longitude: -76.0, Radius: 5},
 			expected: false,
 		},
 		{
 			name:    "TFR with no coordinates",
 			homeLat: 40.0, homeLon: -74.0,
-			tfr:     &models.TFR{Latitude: 0, Longitude: 0, Radius: 10},
+			tfr:      &models.TFR{Latitude: 0, Longitude: 0, Radius: 10},
 			expected: false,
 		},
 	}
@@ -200,15 +200,15 @@ func TestBuildTFRCheck(t *testing.T) {
 	client := &TFRClient{config: &config.DroneWeatherConfig{SearchRadiusMiles: 25}}
 
 	tests := []struct {
-		name        string
-		activeTFRs  []*models.TFR
-		expectActive bool
+		name          string
+		activeTFRs    []*models.TFR
+		expectActive  bool
 		expectSummary string
 	}{
 		{
-			name:        "No active TFRs",
-			activeTFRs:  []*models.TFR{},
-			expectActive: false,
+			name:          "No active TFRs",
+			activeTFRs:    []*models.TFR{},
+			expectActive:  false,
 			expectSummary: "No restrictions found within 25 miles - clear to fly",
 		},
 		{
@@ -216,7 +216,7 @@ func TestBuildTFRCheck(t *testing.T) {
 			activeTFRs: []*models.TFR{
 				{ID: "TFR001", Type: "SPORTS", Reason: "Baseball game"},
 			},
-			expectActive: true,
+			expectActive:  true,
 			expectSummary: "1 restriction(s) found within 25 miles - check locations before flying",
 		},
 		{
@@ -225,7 +225,7 @@ func TestBuildTFRCheck(t *testing.T) {
 				{ID: "TFR001", Type: "SPORTS", Reason: "Baseball game"},
 				{ID: "TFR002", Type: "HAZARDS", Reason: "Wildfire"},
 			},
-			expectActive: true,
+			expectActive:  true,
 			expectSummary: "2 restriction(s) found within 25 miles - check locations before flying",
 		},
 	}

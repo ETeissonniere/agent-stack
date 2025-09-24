@@ -11,17 +11,17 @@ import (
 func TestAnalyzeWeatherConditions(t *testing.T) {
 	client := &WeatherClient{
 		config: &config.DroneWeatherConfig{
-			MaxWindSpeedKmh:      25,   // 25 km/h wind limit
-			MinVisibilityKm:      5,    // 5 km visibility limit
-			MaxPrecipitationMm:   0.0,
-			MinTempC:             4.4,  // 4.4°C minimum temp
-			MaxTempC:             35.0, // 35°C maximum temp
+			MaxWindSpeedKmh:    25, // 25 km/h wind limit
+			MinVisibilityKm:    5,  // 5 km visibility limit
+			MaxPrecipitationMm: 0.0,
+			MinTempC:           4.4,  // 4.4°C minimum temp
+			MaxTempC:           35.0, // 35°C maximum temp
 		},
 	}
 
 	tests := []struct {
-		name      string
-		weather   *models.WeatherData
+		name          string
+		weather       *models.WeatherData
 		expectFlyable bool
 		expectReasons int
 	}{
@@ -144,11 +144,11 @@ func TestAnalyzeWeatherConditions(t *testing.T) {
 
 func TestBasicAnalysis(t *testing.T) {
 	client := &WeatherClient{config: &config.DroneWeatherConfig{
-		MaxWindSpeedKmh:     25,  // 25 km/h limit
-		MinVisibilityKm:     5,   // 5 km limit
-		MaxPrecipitationMm:  0.0,
-		MinTempC:            4.4,
-		MaxTempC:            35.0,
+		MaxWindSpeedKmh:    25, // 25 km/h limit
+		MinVisibilityKm:    5,  // 5 km limit
+		MaxPrecipitationMm: 0.0,
+		MinTempC:           4.4,
+		MaxTempC:           35.0,
 	}}
 
 	weather := &models.WeatherData{
@@ -179,18 +179,18 @@ func TestWindForecastGeneration(t *testing.T) {
 		windSpeedKmh float64
 		expectedText string
 	}{
-		{"Very light winds", 7.0, "Very light winds, excellent conditions"},   // 7 km/h - very light
-		{"Light winds", 14.0, "Light winds, good conditions"},                 // 14 km/h - light
-		{"Moderate winds", 22.0, "Moderate winds, manageable"},                // 22 km/h - moderate
-		{"Strong winds", 30.0, "Strong winds, challenging conditions"},        // 30 km/h - strong
+		{"Very light winds", 7.0, "Very light winds, excellent conditions"}, // 7 km/h - very light
+		{"Light winds", 14.0, "Light winds, good conditions"},               // 14 km/h - light
+		{"Moderate winds", 22.0, "Moderate winds, manageable"},              // 22 km/h - moderate
+		{"Strong winds", 30.0, "Strong winds, challenging conditions"},      // 30 km/h - strong
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			weather := &models.WeatherData{
-				WindSpeed: tt.windSpeedKmh,
-				Temperature: 20.0,
-				Visibility: 10.0,
+				WindSpeed:     tt.windSpeedKmh,
+				Temperature:   20.0,
+				Visibility:    10.0,
 				Precipitation: 0.0,
 			}
 
