@@ -10,13 +10,14 @@ import (
 )
 
 type Config struct {
-	YouTube    YouTubeConfig    `yaml:"youtube"`
-	AI         AIConfig         `yaml:"ai"`
-	Email      EmailConfig      `yaml:"email"`
-	Guidelines GuidelinesConfig `yaml:"guidelines"`
-	Schedule   string           `yaml:"schedule"`
-	Monitoring MonitoringConfig `yaml:"monitoring"`
-	Video      VideoConfig      `yaml:"video"`
+	YouTube     YouTubeConfig     `yaml:"youtube"`
+	AI          AIConfig          `yaml:"ai"`
+	Email       EmailConfig       `yaml:"email"`
+	Guidelines  GuidelinesConfig  `yaml:"guidelines"`
+	Schedule    string            `yaml:"schedule"`
+	Monitoring  MonitoringConfig  `yaml:"monitoring"`
+	Video       VideoConfig       `yaml:"video"`
+	DroneWeather DroneWeatherConfig `yaml:"drone_weather"`
 }
 
 type YouTubeConfig struct {
@@ -51,6 +52,20 @@ type MonitoringConfig struct {
 type VideoConfig struct {
 	ShortMinutes int `yaml:"short_minutes"`
 	LongMinutes  int `yaml:"long_minutes"`
+}
+
+type DroneWeatherConfig struct {
+	HomeLatitude        float64 `yaml:"home_latitude"`
+	HomeLongitude       float64 `yaml:"home_longitude"`
+	HomeName           string  `yaml:"home_name"`
+	SearchRadiusMiles  int     `yaml:"search_radius_miles"`
+	MaxWindSpeedMph    int     `yaml:"max_wind_speed_mph"`
+	MinVisibilityMiles int     `yaml:"min_visibility_miles"`
+	MaxPrecipitationMm float64 `yaml:"max_precipitation_mm"`
+	MinTempF           int     `yaml:"min_temp_f"`
+	MaxTempF           int     `yaml:"max_temp_f"`
+	WeatherURL         string  `yaml:"weather_url"`
+	TFRURL             string  `yaml:"tfr_url"`
 }
 
 func Load() (*Config, error) {
@@ -119,6 +134,32 @@ func Load() (*Config, error) {
 		if p, err := strconv.Atoi(v); err == nil && p > 0 {
 			cfg.Monitoring.HealthPort = p
 		}
+	}
+
+	// Set defaults for drone weather configuration
+	if cfg.DroneWeather.WeatherURL == "" {
+		cfg.DroneWeather.WeatherURL = "https://api.open-meteo.com/v1/forecast"
+	}
+	if cfg.DroneWeather.TFRURL == "" {
+		cfg.DroneWeather.TFRURL = "https://tfr.faa.gov/tfr2/list.html"
+	}
+	if cfg.DroneWeather.MaxWindSpeedMph == 0 {
+		cfg.DroneWeather.MaxWindSpeedMph = 15
+	}
+	if cfg.DroneWeather.MinVisibilityMiles == 0 {
+		cfg.DroneWeather.MinVisibilityMiles = 3
+	}
+	if cfg.DroneWeather.MaxPrecipitationMm == 0 {
+		cfg.DroneWeather.MaxPrecipitationMm = 0
+	}
+	if cfg.DroneWeather.MinTempF == 0 {
+		cfg.DroneWeather.MinTempF = 40
+	}
+	if cfg.DroneWeather.MaxTempF == 0 {
+		cfg.DroneWeather.MaxTempF = 95
+	}
+	if cfg.DroneWeather.SearchRadiusMiles == 0 {
+		cfg.DroneWeather.SearchRadiusMiles = 25
 	}
 
 	if err := cfg.validate(); err != nil {

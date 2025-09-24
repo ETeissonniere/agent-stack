@@ -34,3 +34,23 @@ monitoring:
 video:
   short_minutes: 1
   long_minutes: 60
+
+drone_weather:
+  # User's home location (configurable for any US location)
+  home_latitude: 37.7749
+  home_longitude: -122.4194
+  home_name: "San Francisco Bay Area"
+
+  # TFR search area around home location
+  search_radius_miles: 25
+
+  # Weather thresholds
+  max_wind_speed_mph: 15
+  min_visibility_miles: 3
+  max_precipitation_mm: 0
+  min_temp_f: 40
+  max_temp_f: 95
+
+  # APIs (defaults provided)
+  weather_url: "https://api.open-meteo.com/v1/forecast"
+  tfr_url: "https://tfr.faa.gov/tfr2/list.html"
